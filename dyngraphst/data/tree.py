@@ -21,6 +21,8 @@ class Tree(ABC, Generic[Node]):
     def nodes_and_arities(self) -> list[tuple[Node, int]]: return nodes_and_arities(self)
     def fmap(self, f: Callable[[Node], Other]) -> 'Tree[Other]': return tree_fmap(self, f)
     def levels(self) -> list[list[Node]]: return levels(self)
+    def numel(self) -> int: return numel(self)
+    def infix(self) -> str: return infix(self)
 
 
 class Leaf(Tree[Node]):
@@ -121,20 +123,28 @@ def levels(tree: Tree[Node]) -> list[list[Node]]:
             return [[node]] + [sum(xs, []) for xs in zip_longest(levels(left), levels(right), fillvalue=[])]
 
 
+def numel(tree: Tree[Node]) -> int:
+    match tree:
+        case Leaf(_): return 1
+        case Unary(_, child): return 1 + numel(child)
+        case Binary(_, left, right): return 1 + numel(left) + numel(right)
+        case _: raise TypeError(f'{tree} is not a tree')
+
+
+def infix(tree: Tree[Node]) -> str:
+    match tree:
+        case Leaf(node): return str(node)
+        case Unary(node, child): return f'({node} {infix(child)})'
+        case Binary(node, left, right): return f'({infix(left)}{node}{infix(right)})'
+        case _: raise TypeError(f'{tree} is not a tree')
+
+
 def breadth_first(tree: Tree[Node]) -> list[Node]:
     return sum(levels(tree), [])
 
 
 def depth_slice(trees: list[Tree[Node]], depth: int) -> list[list[Node]]:
     return [treelvls[depth] if len(treelvls := levels(tree)) > depth else [] for tree in trees]
-
-
-def dfs_to_tree(sequence: list[Node]) -> Tree[Node]:
-    ...
-
-
-def bfs_to_tree(sequence: list[Node]) -> Tree[Node]:
-    ...
 
 
 @dataclass

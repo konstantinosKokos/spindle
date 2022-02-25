@@ -5,9 +5,10 @@ from .encoder import Encoder
 from .embedding import InvertibleEmbedding
 
 import torch
-from torch.nn import Module, Embedding, Linear
+from torch.nn import Module, Embedding
 from torch import Tensor
 from torch_geometric.typing import OptTensor
+from torch_geometric.utils import dropout_adj
 
 
 class Tagger(Module):
@@ -15,41 +16,42 @@ class Tagger(Module):
                  num_classes: int,
                  max_dist: int,
                  encoder_core: str,
+                 bert_type: str,
                  sep_token_id: int,
                  encoder_dim: int = 768,
                  decoder_dim: int = 128,
                  cross_heads: int = 4,
                  self_heads: int = 8,
-                 dropout_rate: float = 0.15):
+                 dropout_rate: float = 0.2,
+                 edge_dropout: float = 0.33):
         super(Tagger, self).__init__()
         self.encoder_dim = encoder_dim
         self.decoder_dim = decoder_dim
         self.max_dist = max_dist
-        self.encoder = Encoder(encoder_core, sep_token_id, dropout_rate)
-        self.encoder_out = Linear(self.encoder_dim, self.encoder_dim)
+        self.encoder = Encoder(encoder_core, bert_type, sep_token_id, dropout_rate, encoder_dim)
         self.decoder = Decoder(encoder_dim, decoder_dim, cross_heads, self_heads, dropout_rate)
         self.path_encoder = BinaryPathEncoder.orthogonal(self.decoder_dim)
         self.embedder = InvertibleEmbedding(num_classes, decoder_dim, dropout_rate)
         self.dist_embedding = Embedding(2 * max_dist + 2, encoder_dim // self_heads)
+        self.edge_dropout = edge_dropout
 
     def encode(self,
                input_ids: Tensor,
                attention_mask: Tensor,
                token_clusters: Tensor) -> Tensor:
-        bert_out = self.encoder.forward(input_ids, attention_mask, token_clusters)
-        return self.encoder_out(bert_out)
+        return self.encoder.forward(input_ids, attention_mask, token_clusters)
 
     def decode_step(self,
                     root_features: Tensor,
                     feedback_features: OptTensor,
-                    fringe_features: Tensor,
+                    fringe_maps: Tensor,
                     feedback_index: OptTensor,
                     root_edge_index: Tensor,
                     root_to_fringe_index: Tensor,
                     root_edge_attr: Tensor) -> tuple[Tensor, Tensor]:
         return self.decoder.step(root_features=root_features,
                                  feedback_features=feedback_features,
-                                 fringe_features=fringe_features,
+                                 fringe_maps=fringe_maps,
                                  feedback_index=feedback_index,
                                  root_edge_index=root_edge_index,
                                  root_to_fringe_index=root_to_fringe_index,
@@ -61,17 +63,14 @@ class Tagger(Module):
                      node_pos: list[Tensor],
                      root_to_node_index: list[Tensor],
                      root_edge_index: Tensor,
-                     root_edge_attr: Tensor,
-                     mask_token_id: int = 0) -> list[Tensor]:
+                     root_edge_attr: Tensor) -> list[Tensor]:
         feedback_features, feedback_index, preds = None, None, []
         self.path_encoder.precompute(max(node_pos[-1]))
         for i in range(len(node_ids)):
             positional_maps = self.path_encoder.forward(node_pos[i])
-            fringe_features = self.embedder.embed(torch.ones_like(node_ids[i]) * mask_token_id)
-            fringe_features = torch.bmm(positional_maps, fringe_features.unsqueeze(-1)).squeeze(-1)
             root_features, fringe_weights = self.decode_step(root_features=root_features,
                                                              feedback_features=feedback_features,
-                                                             fringe_features=fringe_features,
+                                                             fringe_maps=positional_maps,
                                                              feedback_index=feedback_index,
                                                              root_edge_index=root_edge_index,
                                                              root_edge_attr=root_edge_attr,
@@ -88,42 +87,35 @@ class Tagger(Module):
                    root_edge_index: Tensor,
                    root_edge_attr: Tensor,
                    max_type_depth: int,
-                   mask_token_id: int = 0,
-                   splitpoint: int = 32):
-
+                   first_binary: int) -> list[Tensor]:
         fringe_pos = torch.ones(root_features.shape[0], device=root_features.device, dtype=torch.long)
-        fringe_ids = torch.ones_like(fringe_pos, dtype=torch.long) * mask_token_id
         root_to_fringe_index = torch.arange(root_features.shape[0], device=root_features.device)
 
         feedback_features, feedback_index, preds = None, None, []
-
         for _ in range(max_type_depth):
             positional_maps = self.path_encoder.forward(fringe_pos)
-            fringe_features = self.positionally_embed(positional_maps, fringe_ids)
-
             root_features, fringe_weights = self.decode_step(root_features=root_features,
                                                              feedback_features=feedback_features,
-                                                             fringe_features=fringe_features,
+                                                             fringe_maps=positional_maps,
                                                              feedback_index=feedback_index,
                                                              root_edge_index=root_edge_index,
                                                              root_edge_attr=root_edge_attr,
                                                              root_to_fringe_index=root_to_fringe_index)
             node_ids = self.embedder.invert(fringe_weights).argmax(dim=-1)
-            binary_mask = node_ids >= splitpoint
+            binary_mask = node_ids >= first_binary
 
             feedback_features = self.positionally_embed(positional_maps, node_ids)
-            feedback_index = torch.vstack((torch.arange(root_to_fringe_index.shape[0], device=fringe_ids.device),
+            feedback_index = torch.vstack((torch.arange(root_to_fringe_index.shape[0], device=feedback_features.device),
                                            root_to_fringe_index))
 
             root_to_fringe_index = root_to_fringe_index[binary_mask].repeat_interleave(2)
             left_pos = 2 * fringe_pos[binary_mask]
             right_pos = left_pos + 1
             fringe_pos = torch.stack((left_pos, right_pos), dim=1).view(-1)
-            fringe_ids = torch.ones_like(fringe_pos, dtype=torch.long) * mask_token_id
 
             preds.append(node_ids)
             if not binary_mask.any():
-                break
+                return preds
         return preds
 
     def forward_train(self, input_ids: Tensor,
@@ -134,12 +126,13 @@ class Tagger(Module):
                       node_to_root_index: list[Tensor],
                       root_to_root_index: Tensor,
                       root_to_root_dist: Tensor,
-                      cls_dist: int = -100) -> list[Tensor]:
+                      cls_dist: int = -999) -> list[Tensor]:
         root_features = self.encode(input_ids, attention_mask, token_clusters)
         root_dist = torch.where(root_to_root_dist != cls_dist,
                                 root_to_root_dist.clip(-self.max_dist, self.max_dist) + self.max_dist + 1,
                                 0)
         root_edge_attr = self.dist_embedding(root_dist)
+        root_to_root_index, root_edge_attr = dropout_adj(root_to_root_index, root_edge_attr, self.edge_dropout)
         return self.decode_train(root_features,
                                  node_ids,
                                  node_pos,
@@ -152,7 +145,8 @@ class Tagger(Module):
                     token_clusters: Tensor,
                     root_to_root_index: Tensor,
                     root_to_root_dist: Tensor,
-                    cls_dist: int = -100,
+                    first_binary: int,
+                    cls_dist: int = -999,
                     max_type_depth: int = 10) -> list[Tensor]:
         root_features = self.encode(input_ids, attention_mask, token_clusters)
         root_dist = torch.where(root_to_root_dist != cls_dist,
@@ -162,6 +156,7 @@ class Tagger(Module):
         return self.decode_dev(root_features,
                                root_to_root_index,
                                root_edge_attr,
+                               first_binary=first_binary,
                                max_type_depth=max_type_depth)
 
     def positionally_embed(self, positional_maps: Tensor, node_ids: Tensor) -> Tensor:
