@@ -24,7 +24,7 @@ def make_schedule(warmup_steps: int,
         elif step < total_steps - warmdown_steps:
             return max_lr
         elif step > total_steps:
-            warn(f"Step {step} is greater than total steps {total_steps}")
+            warn(f"Step is greater than total steps")
             return min_lr
         return cosine_schedule(step - (total_steps - warmdown_steps))
     return schedule

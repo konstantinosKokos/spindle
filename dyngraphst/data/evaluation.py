@@ -30,8 +30,12 @@ def trees_to_frames(trees: list[Tree[Symbol]], splitpoints: list[int]) -> list[l
 
 
 def merge_preds_on_true(preds: list[Tree[Symbol]], indices: list[int]) -> list[Tree[Symbol]]:
-    return [preds[i] if all([p == MWU for p in preds[i+1:end]]) else MWU  # force wrong on bad MWU
-            for i, end in zip(indices, indices + [len(preds)])]
+    def check_rest(ps: list[Tree[Symbol]]) -> bool:
+        if not all(p == MWU for p in ps):
+            print(ps)
+            return False
+        return True
+    return [preds[i] if check_rest(preds[i+1:end]) else MWU for i, end in zip(indices, indices + [len(preds)])]
 
 
 def evaluate_results_file(results_file: str, atom_map_path: str, occurrence_file: str | None = None):

@@ -20,20 +20,33 @@ class Tagger(Module):
                  sep_token_id: int,
                  encoder_dim: int = 768,
                  decoder_dim: int = 128,
+                 bpe_lrf_dim: int = 16,
                  cross_heads: int = 4,
                  self_heads: int = 8,
-                 dropout_rate: float = 0.2,
-                 edge_dropout: float = 0.33):
+                 dropout_rate: float = 0.15,
+                 edge_dropout: float = 0.33,
+                 truncate_long_edges: bool = True,):
         super(Tagger, self).__init__()
         self.encoder_dim = encoder_dim
         self.decoder_dim = decoder_dim
         self.max_dist = max_dist
         self.encoder = Encoder(encoder_core, bert_type, sep_token_id, dropout_rate, encoder_dim)
         self.decoder = Decoder(encoder_dim, decoder_dim, cross_heads, self_heads, dropout_rate)
-        self.path_encoder = BinaryPathEncoder.orthogonal(self.decoder_dim)
+        self.path_encoder = BinaryPathEncoder(bpe_lrf_dim, self.decoder_dim)
         self.embedder = InvertibleEmbedding(num_classes, decoder_dim, dropout_rate)
         self.dist_embedding = Embedding(2 * max_dist + 2, encoder_dim // self_heads)
         self.edge_dropout = edge_dropout
+        self.truncate_long_edges = truncate_long_edges
+        self.imprint = f'\
+                       \tencoder_core: {encoder_core}\n\
+                       \tencoder_dim: {encoder_dim}\n\
+                       \tdecoder_dim: {decoder_dim}\n\
+                       \tbpe_lrf_dim: {bpe_lrf_dim}\n\
+                       \tcross_heads: {cross_heads}\n\
+                       \tself_heads: {self_heads}\n\
+                       \tdropout_rate: {dropout_rate}\n\
+                       \tedge_dropout: {edge_dropout}\n\
+                       \ttruncate_long_edges: {truncate_long_edges}\n'
 
     def encode(self,
                input_ids: Tensor,
@@ -75,8 +88,7 @@ class Tagger(Module):
                                                              root_edge_index=root_edge_index,
                                                              root_edge_attr=root_edge_attr,
                                                              root_to_fringe_index=root_to_node_index[i][0])
-            feedback_features = self.embedder.embed(node_ids[i])
-            feedback_features = torch.bmm(positional_maps, feedback_features.unsqueeze(-1)).squeeze(-1)
+            feedback_features = self.positionally_embed(positional_maps, node_ids[i])
             feedback_index = root_to_node_index[i].flip(0)
             preds.append(self.embedder.invert(fringe_weights))
         return preds
@@ -124,44 +136,51 @@ class Tagger(Module):
                       node_ids: list[Tensor],
                       node_pos: list[Tensor],
                       node_to_root_index: list[Tensor],
-                      root_to_root_index: Tensor,
-                      root_to_root_dist: Tensor,
+                      root_edge_index: Tensor,
+                      root_dist: Tensor,
                       cls_dist: int = -999) -> list[Tensor]:
         root_features = self.encode(input_ids, attention_mask, token_clusters)
-        root_dist = torch.where(root_to_root_dist != cls_dist,
-                                root_to_root_dist.clip(-self.max_dist, self.max_dist) + self.max_dist + 1,
-                                0)
-        root_edge_attr = self.dist_embedding(root_dist)
-        root_to_root_index, root_edge_attr = dropout_adj(root_to_root_index, root_edge_attr, self.edge_dropout)
+        root_edge_index, root_edge_attr = self.embed_sentential_edges(root_edge_index, root_dist, cls_dist)
         return self.decode_train(root_features,
                                  node_ids,
                                  node_pos,
                                  node_to_root_index,
-                                 root_to_root_index,
+                                 root_edge_index,
                                  root_edge_attr)
 
     def forward_dev(self, input_ids: Tensor,
                     attention_mask: Tensor,
                     token_clusters: Tensor,
-                    root_to_root_index: Tensor,
-                    root_to_root_dist: Tensor,
+                    root_edge_index: Tensor,
+                    root_dist: Tensor,
                     first_binary: int,
                     cls_dist: int = -999,
                     max_type_depth: int = 10) -> list[Tensor]:
         root_features = self.encode(input_ids, attention_mask, token_clusters)
-        root_dist = torch.where(root_to_root_dist != cls_dist,
-                                root_to_root_dist.clip(-self.max_dist, self.max_dist) + self.max_dist + 1,
-                                0)
-        root_edge_attr = self.dist_embedding(root_dist)
+        root_edge_index, root_edge_attr = self.embed_sentential_edges(root_edge_index, root_dist, cls_dist)
         return self.decode_dev(root_features,
-                               root_to_root_index,
+                               root_edge_index,
                                root_edge_attr,
                                first_binary=first_binary,
                                max_type_depth=max_type_depth)
 
+    def embed_sentential_edges(self, root_edge_index: Tensor, root_dist: Tensor, cls_dist) -> tuple[Tensor, Tensor]:
+        clipped_dist = torch.where(root_dist != cls_dist,
+                                   root_dist.clip(-self.max_dist, self.max_dist) + self.max_dist + 1,
+                                   0)
+        if self.truncate_long_edges:
+            distance_mask = root_dist.eq(cls_dist).bitwise_or(root_dist.abs() < self.max_dist)
+            clipped_dist = clipped_dist[distance_mask]
+            root_edge_index = root_edge_index[:, distance_mask]
+
+        root_edge_attr = self.dist_embedding(clipped_dist)
+        root_edge_index, root_edge_attr = dropout_adj(root_edge_index, root_edge_attr, self.edge_dropout)
+        return root_edge_index, root_edge_attr
+
     def positionally_embed(self, positional_maps: Tensor, node_ids: Tensor) -> Tensor:
-        node_features = self.embedder.embed(node_ids)
-        return torch.bmm(positional_maps, node_features.unsqueeze(-1)).squeeze(-1)
+        return positional_maps * self.embedder.embed(node_ids)
+        # node_features = self.embedder.embed(node_ids)
+        # return torch.bmm(positional_maps.permute(0, 2, 1), node_features.unsqueeze(-1)).squeeze(-1)
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)

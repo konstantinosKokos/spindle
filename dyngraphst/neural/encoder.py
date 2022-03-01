@@ -13,14 +13,14 @@ class Encoder(Module):
                  core: str,
                  bert_type: str,
                  sep_token_id: int,
-                 dropout_rate: float = 0.15,
-                 output_dim: int = 768):
+                 dropout_rate: float,
+                 bottleneck_dim: int = 768):
         super().__init__()
         cls = {'bert': BertModel, 'roberta': RobertaModel, 'camembert': CamembertModel}[bert_type]
         self.core = cls.from_pretrained(core)
         self.aggregator = GlobalAttention(gate_nn=Linear(self.core.config.hidden_size, 1),
-                                          nn=Linear(self.core.config.hidden_size, output_dim))
-        self.norm = RMSNorm(output_dim)
+                                          nn=Linear(self.core.config.hidden_size, bottleneck_dim, bias=False))
+        self.norm = RMSNorm(bottleneck_dim)
         self.dropout = Dropout(dropout_rate)
         self.sep_token_id = sep_token_id
 
