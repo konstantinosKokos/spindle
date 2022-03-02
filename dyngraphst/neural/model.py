@@ -178,9 +178,9 @@ class Tagger(Module):
         return root_edge_index, root_edge_attr
 
     def positionally_embed(self, positional_maps: Tensor, node_ids: Tensor) -> Tensor:
-        return positional_maps * self.embedder.embed(node_ids)
-        # node_features = self.embedder.embed(node_ids)
-        # return torch.bmm(positional_maps.permute(0, 2, 1), node_features.unsqueeze(-1)).squeeze(-1)
+        # return positional_maps * self.embedder.embed(node_ids)
+        node_features = self.embedder.embed(node_ids)
+        return torch.bmm(positional_maps.permute(0, 2, 1), node_features.unsqueeze(-1)).squeeze(-1)
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)
