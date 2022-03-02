@@ -127,12 +127,16 @@ class BinaryPathEncoder(Module):
 
     def precompute(self, up_to: int):
         precomputed = [
-            torch.eye(self.lrf_dim, device=self.primitives.device),
+            torch.eye(self.dim, device=self.primitives.device),
             self.primitives[0],
             self.primitives[1]]
         for i in range(3, up_to + 1):
             precomputed.append(precomputed[(i + 1) // 2 - 1] @ self.primitives[(i + 1) % 2])
-        self.precomputed = torch.stack(precomputed).flatten(1, 2)
+        self.precomputed = torch.stack(precomputed)
 
     def forward(self, node_positions: Tensor) -> Tensor:
         return torch.index_select(self.precomputed, 0, node_positions - 1)
+
+    @staticmethod
+    def orthogonal(dim: int) -> BinaryPathEncoder:
+        return orthogonal(BinaryPathEncoder(dim), name='primitives', orthogonal_map='matrix_exp')  # type: ignore

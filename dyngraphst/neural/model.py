@@ -20,7 +20,6 @@ class Tagger(Module):
                  sep_token_id: int,
                  encoder_dim: int = 768,
                  decoder_dim: int = 128,
-                 bpe_lrf_dim: int = 16,
                  cross_heads: int = 4,
                  self_heads: int = 8,
                  dropout_rate: float = 0.15,
@@ -32,7 +31,7 @@ class Tagger(Module):
         self.max_dist = max_dist
         self.encoder = Encoder(encoder_core, bert_type, sep_token_id, dropout_rate, encoder_dim)
         self.decoder = Decoder(encoder_dim, decoder_dim, cross_heads, self_heads, dropout_rate)
-        self.path_encoder = BinaryPathEncoder(bpe_lrf_dim, self.decoder_dim)
+        self.path_encoder = BinaryPathEncoder.orthogonal(self.decoder_dim)
         self.embedder = InvertibleEmbedding(num_classes, decoder_dim, dropout_rate)
         self.dist_embedding = Embedding(2 * max_dist + 2, encoder_dim // self_heads)
         self.edge_dropout = edge_dropout
@@ -41,7 +40,6 @@ class Tagger(Module):
                        \tencoder_core: {encoder_core}\n\
                        \tencoder_dim: {encoder_dim}\n\
                        \tdecoder_dim: {decoder_dim}\n\
-                       \tbpe_lrf_dim: {bpe_lrf_dim}\n\
                        \tcross_heads: {cross_heads}\n\
                        \tself_heads: {self_heads}\n\
                        \tdropout_rate: {dropout_rate}\n\
