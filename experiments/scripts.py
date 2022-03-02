@@ -11,7 +11,7 @@ def train_ccgbank(device: str, storage_dir: str, log_path: str, init_epoch: int 
     train(device=device, encoder_core='roberta-base', bert_type='roberta', storage_dir=storage_dir,
           log_path=log_path, init_epoch=init_epoch, data_path=data_path, num_classes=37,
           max_dist=max_dist, schedule_epochs=schedule_epochs, max_seq_len=max_seq_len,
-          depth_per_epoch=lambda _: 6, pad_token_id=1, sep_token_id=2, **kwargs)
+          depth_per_epoch=lambda _: 7, pad_token_id=1, sep_token_id=2, **kwargs)
 
 
 def evaluate_ccgbank(device: str, model_path: str, data_path: str = './experiments/ccg/vectorized_original.p',
