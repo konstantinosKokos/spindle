@@ -33,9 +33,7 @@ class Decoder(Module):
         return self.node_feedback_norm(root_features + feedback)
 
     def decode_fringe(self, root_features: Tensor, fringe_maps: Tensor, root_index: Tensor) -> Tensor:
-        fringe_vectors = self.root_to_fringe(root_features[root_index])
-        return torch.bmm(fringe_maps, fringe_vectors.unsqueeze(-1)).squeeze(-1)
-        # return self.root_to_fringe(root_features[root_index]) * fringe_maps
+        return self.root_to_fringe(root_features[root_index]) * fringe_maps
 
     def root_feedback(self, root_features: Tensor, root_edge_index: Tensor, root_edge_attr: Tensor) -> Tensor:
         feedback = self.roots_to_root(xs=root_features, edge_index=root_edge_index, edge_attr=root_edge_attr)
@@ -122,6 +120,7 @@ class BinaryPathEncoder(Module):
     def __init__(self, dim: int):
         super().__init__()
         self.primitives = Parameter(torch.nn.init.normal_(torch.empty(2, dim, dim)))
+        self.init = Parameter(torch.nn.init.normal_(torch.empty(dim)))
         self.dim = dim
         self.precomputed = None
 
@@ -132,7 +131,7 @@ class BinaryPathEncoder(Module):
             self.primitives[1]]
         for i in range(3, up_to + 1):
             precomputed.append(precomputed[(i + 1) // 2 - 1] @ self.primitives[(i + 1) % 2])
-        self.precomputed = torch.stack(precomputed)
+        self.precomputed = torch.stack(precomputed) @ self.init
 
     def forward(self, node_positions: Tensor) -> Tensor:
         return torch.index_select(self.precomputed, 0, node_positions - 1)
