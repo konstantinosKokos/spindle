@@ -5,7 +5,7 @@ from .encoder import Encoder
 from .embedding import InvertibleEmbedding
 
 import torch
-from torch.nn import Module, Embedding
+from torch.nn import Module, Embedding, Dropout
 from torch import Tensor
 from torch_geometric.typing import OptTensor
 from torch_geometric.utils import dropout_adj
@@ -20,28 +20,30 @@ class Tagger(Module):
                  sep_token_id: int,
                  encoder_dim: int = 768,
                  decoder_dim: int = 128,
-                 bpe_lrf_dim: int = 16,
                  cross_heads: int = 4,
                  self_heads: int = 8,
                  dropout_rate: float = 0.2,
                  edge_dropout: float = 0.2,
                  truncate_long_edges: bool = True,):
         super(Tagger, self).__init__()
+
         self.encoder_dim = encoder_dim
         self.decoder_dim = decoder_dim
         self.max_dist = max_dist
-        self.encoder = Encoder(encoder_core, bert_type, sep_token_id, dropout_rate, encoder_dim)
-        self.decoder = Decoder(encoder_dim, decoder_dim, cross_heads, self_heads, dropout_rate)
-        self.path_encoder = BinaryPathEncoder(self.decoder_dim)
-        self.embedder = InvertibleEmbedding(num_classes, decoder_dim, dropout_rate)
-        self.dist_embedding = Embedding(2 * max_dist + 2, encoder_dim // self_heads)
         self.edge_dropout = edge_dropout
         self.truncate_long_edges = truncate_long_edges
+
+        self.encoder = Encoder(encoder_core, bert_type, sep_token_id, encoder_dim)
+        self.decoder = Decoder(encoder_dim, decoder_dim, cross_heads, self_heads)
+        self.dropout = Dropout(dropout_rate)
+        self.path_encoder = BinaryPathEncoder.orthogonal(self.decoder_dim)
+        self.embedder = InvertibleEmbedding(num_classes, decoder_dim)
+        self.dist_embedding = Embedding(2 * max_dist + 2, encoder_dim // self_heads)
+
         self.imprint = f'\
                        \tencoder_core: {encoder_core}\n\
                        \tencoder_dim: {encoder_dim}\n\
                        \tdecoder_dim: {decoder_dim}\n\
-                       \tbpe_lrf_dim: {bpe_lrf_dim}\n\
                        \tcross_heads: {cross_heads}\n\
                        \tself_heads: {self_heads}\n\
                        \tdropout_rate: {dropout_rate}\n\
@@ -74,6 +76,9 @@ class Tagger(Module):
                      root_to_node_index: list[Tensor],
                      root_edge_index: Tensor,
                      root_edge_attr: Tensor) -> list[Tensor]:
+
+        root_features = self.dropout(root_features)
+
         feedback_features, feedback_index, preds = None, None, []
         self.path_encoder.precompute(max(node_pos[-1]))
         for i in range(len(node_ids)):
@@ -85,6 +90,7 @@ class Tagger(Module):
                                                              root_edge_index=root_edge_index,
                                                              root_edge_attr=root_edge_attr,
                                                              root_to_fringe_index=root_to_node_index[i][0])
+            fringe_weights = self.dropout(fringe_weights)
             feedback_features = self.positionally_embed(positional_maps, node_ids[i])
             feedback_index = root_to_node_index[i].flip(0)
             preds.append(self.embedder.invert(fringe_weights))
@@ -114,8 +120,9 @@ class Tagger(Module):
             binary_mask = node_ids >= first_binary
 
             feedback_features = self.positionally_embed(positional_maps, node_ids)
-            feedback_index = torch.vstack((torch.arange(root_to_fringe_index.shape[0], device=feedback_features.device),
-                                           root_to_fringe_index))
+            feedback_index = torch.vstack(
+                (torch.arange(root_to_fringe_index.shape[0], device=feedback_features.device),
+                 root_to_fringe_index))
 
             root_to_fringe_index = root_to_fringe_index[binary_mask].repeat_interleave(2)
             left_pos = 2 * fringe_pos[binary_mask]
