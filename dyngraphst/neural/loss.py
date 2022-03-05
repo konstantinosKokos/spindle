@@ -1,16 +1,15 @@
 import pdb
 
-from torch.nn import Module, KLDivLoss, CrossEntropyLoss
-from torch.nn.functional import log_softmax
+from torch.nn import Module, CrossEntropyLoss
 from torch import Tensor
-import torch
+
+from math import sqrt
 
 
 class GroupedLoss(Module):
-    def __init__(self,
-                 reduction: str = 'mean'):
+    def __init__(self, reduction: str = 'mean', label_smoothing: float = 0.0):
         super().__init__()
-        self.loss_fn = CrossEntropyLoss(reduction='none')
+        self.loss_fn = CrossEntropyLoss(reduction='none', label_smoothing=label_smoothing)
         self.reduction = reduction
 
     def forward_many(self, predictions: list[Tensor], targets: list[Tensor], numels: list[Tensor]) -> Tensor:

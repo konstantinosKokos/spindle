@@ -32,8 +32,8 @@ def make_loaders(data: tuple[BatchItems, BatchItems, BatchItems],
     train, dev, test = [[sample for sample in subset if len(sample[0][0]) <= max_seq_len] for subset in data]
     collate_fn = make_collator(device, pad_token_id=pad_token_id, cls_dist=cls_dist)
     return (DataLoader(train, batch_size_train, shuffle=True, collate_fn=collate_fn),
-            DataLoader(dev, batch_size_dev, shuffle=False, collate_fn=collate_fn),
-            DataLoader(test, batch_size_dev, shuffle=False, collate_fn=collate_fn))
+            DataLoader(sorted(dev, key=lambda x: len(x[0][0])), batch_size_dev, shuffle=False, collate_fn=collate_fn),
+            DataLoader(sorted(test, key=lambda x: len(x[0][0])), batch_size_dev, shuffle=False, collate_fn=collate_fn))
 
 
 def train(device: str,
@@ -58,19 +58,20 @@ def train(device: str,
             print(msg)
 
     data = load_data(data_path)
-    train_dl, val_dl, test_dl = make_loaders(data, device, max_seq_len=max_seq_len, pad_token_id=pad_token_id)
+    train_dl = make_loaders(data, device, max_seq_len=max_seq_len, pad_token_id=pad_token_id)[0]
     model = Tagger(num_classes=num_classes,
                    max_dist=max_dist,
                    encoder_core=encoder_core,
                    bert_type=bert_type,
                    sep_token_id=sep_token_id).to(device)
-    loss_fn = GroupedLoss(reduction='sum')
+    loss_fn = GroupedLoss(reduction='sum', label_smoothing=0.1)
     opt = AdamW([
-        {'params': model.encoder.parameters(), 'lr': 1e-5},
+        {'params': model.encoder.core.parameters(), 'lr': 1e-5},
         {'params': sum(map(list, (model.decoder.parameters(),
                                   model.dist_embedding.parameters(),
                                   model.embedder.parameters(),
-                                  model.path_encoder.parameters())), []), 'lr': 1e-4}],
+                                  model.path_encoder.parameters(),
+                                  model.encoder.aggregator.parameters(),)), []), 'lr': 1e-4}],
         weight_decay=1e-2)
     schedule = make_schedule(warmup_steps=int(0.1 * len(train_dl) * schedule_epochs),
                              warmdown_steps=int(0.9 * schedule_epochs * len(train_dl)),
@@ -98,8 +99,10 @@ def train(device: str,
         epoch_stats = defaultdict(lambda: (0, 0))
         now = time()
         for batch in train_dl:
-            (token_ids, atn_mask, token_clusters, root_edge_index,
-             root_edge_dist, root_to_node_index, node_ids, node_pos, numels) = batch
+            (token_ids, atn_mask, token_clusters,
+             root_edge_index, root_edge_dist,
+             root_to_node_index, node_ids,
+             node_pos, numels) = batch
             opt.zero_grad(set_to_none=True)
             out = model.forward_train(input_ids=token_ids,
                                       attention_mask=atn_mask,
@@ -130,6 +133,8 @@ def train(device: str,
         for depth in sorted(epoch_stats.keys()):
             correct, total = epoch_stats[depth]
             message += f'Depth {depth}: {correct}/{total} ({correct / total:.2f})\n'
+        correct, total = sum(map(lambda x: x[0], epoch_stats.values())), sum(map(lambda x: x[1], epoch_stats.values()))
+        message += f'Total: {correct}/{total} ({correct / total:.2f})\n'
         logprint(message)
 
 
