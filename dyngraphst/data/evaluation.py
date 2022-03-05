@@ -75,7 +75,8 @@ def evaluate_results_file(results_file: str, atom_map_path: str, occurrence_file
     unk = [i for i in range(len(pred_trees)) if occurrence_counts[gold_trees[i]] == 0]
 
     print('100+ accuracy:')
-    print(f'{sum(map(eq, [pred_trees[i] for i in rest], [gold_trees[i] for i in rest])) / len(rest)} ({len(rest)})')
+    s = sum(map(eq, [pred_trees[i] for i in rest], gs := [gold_trees[i] for i in rest]))
+    print(f'{s / len(rest)} ({s} / {len(rest)}) ({len(set(gs))})')
     print('10-99 accuracy:')
     s = sum(map(eq, [pred_trees[i] for i in mrare], gs := [gold_trees[i] for i in mrare]))
     print(f'{s / len(mrare)} ({s}/{len(mrare)}) {len(set(gs))}')
