@@ -5,7 +5,7 @@ from LassyExtraction.mill.nets import (Tree as FTree, Unary as FUnary, Binary as
 
 
 from dyngraphst.data.tree import Tree, Leaf, Unary, Binary, Symbol
-from dyngraphst.data.preprocessing import Sample, make_symbol_map, extract_unique_symbols, pad_mwus
+from dyngraphst.data.processing import Sample, make_symbol_map, extract_unique_symbols, pad_mwus
 
 
 def formula_tree_to_tree(formula_tree: FTree) -> Tree[Symbol]:

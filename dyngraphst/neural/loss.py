@@ -3,8 +3,6 @@ import pdb
 from torch.nn import Module, CrossEntropyLoss
 from torch import Tensor
 
-from math import sqrt
-
 
 class GroupedLoss(Module):
     def __init__(self, reduction: str = 'mean', label_smoothing: float = 0.0):
@@ -16,7 +14,7 @@ class GroupedLoss(Module):
         return sum(map(self.forward, predictions, targets, numels))
 
     def forward(self, prediction: Tensor, target: Tensor, numel: Tensor) -> Tensor:
-        loss = self.loss_fn(prediction, target) * numel
+        loss = self.loss_fn(prediction, target)
 
         if self.reduction == 'mean':
             return loss.mean()

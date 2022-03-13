@@ -72,9 +72,8 @@ def merge_mwus(words: list[str], types: list[Tree]) -> tuple[list[str], list[Tre
     return ws, ts
 
 
-
 def occurrence_count(samples: list[Sample]) -> list[tuple[Tree[Symbol], int]]:
-    trees = [tree for sample in samples for tree in sample.trees[1:]]
+    trees = [tree.fmap(Symbol.plain) for sample in samples for tree in sample.trees[1:]]
     counts = defaultdict(lambda: 0)
     for tree in trees:
         counts[tree] += 1

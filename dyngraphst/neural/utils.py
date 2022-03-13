@@ -73,3 +73,7 @@ class RMSNorm(Module):
     def forward(self, x):
         norm = torch.norm(x, dim=-1, keepdim=True) * self.scale
         return x / norm.clamp(min=self.eps) * self.g
+
+
+def count_params(model: Module) -> int:
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)

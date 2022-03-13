@@ -3,13 +3,13 @@ import pdb
 import torch
 from typing import Iterator, Callable
 from torch import Tensor
-from itertools import product, zip_longest
+from itertools import product, zip_longest, chain
 
 from torch.nn.utils.rnn import pad_sequence as _pad_sequence
 
 
-def pad_sequence(sequence: list[Tensor], **kwargs) -> Tensor:
-    return _pad_sequence(sequence, batch_first=True, **kwargs)
+def pad_sequence(sequence: list[Tensor], padding_value: int = 0) -> Tensor:
+    return _pad_sequence(sequence, batch_first=True, padding_value=padding_value)
 
 
 def sent_lengths_to_edges(sent_lengths: list[int], cls_distance: int) -> Iterator[tuple[tuple[int, int], int]]:
@@ -24,8 +24,7 @@ DecoderItem = list[list[list[list[tuple[int, int, int]]]]]
 
 
 def batchify_decoder_inputs(trees: list[DecoderItem]) -> Iterator[tuple[Tensor, Tensor, Tensor, Tensor]]:
-    concatenated = sum(trees, [])
-    depths = zip_longest(*[t for t in concatenated], fillvalue=[])
+    depths = zip_longest(*chain.from_iterable(trees), fillvalue=[])
     for depth in depths:
         root_ids, symbols, positions, numel = zip(*((root_id, symbol, position, numel)
                                                     for root_id, nodes in enumerate(depth)
@@ -40,9 +39,9 @@ def batchify_encoder_inputs(token_ids: list[Tensor],
                             token_clusters: list[Tensor],
                             pad_token_id: int,
                             cls_dist: int = -999) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
-    edge_index, edge_distance = list(zip(*sent_lengths_to_edges([max(t) + 1 for t in token_clusters], cls_dist)))
-    token_ids = pad_sequence([t for t in token_ids], padding_value=pad_token_id)
-    token_clusters = pad_sequence([t for t in token_clusters], padding_value=-1)
+    edge_index, edge_distance = zip(*sent_lengths_to_edges([max(t) + 1 for t in token_clusters], cls_dist))
+    token_ids = pad_sequence(token_ids, padding_value=pad_token_id)
+    token_clusters = pad_sequence(token_clusters, padding_value=-1)
     offsets = (token_clusters.max(dim=-1).values + 1).cumsum(dim=-1).roll(1, 0).unsqueeze(-1)
     offsets[0] = 0
     return (
@@ -74,7 +73,7 @@ def collate_fn(batch_items: BatchItems,
 
     token_ids, atn_mask, token_clusters, root_edge_index, root_edge_dist = \
         batchify_encoder_inputs(token_ids, token_clusters, pad_token_id, cls_dist)
-    root_to_node_index, node_ids, node_pos, numels = list(zip(*batchify_decoder_inputs(decoder_inputs)))
+    root_to_node_index, node_ids, node_pos, numels = zip(*batchify_decoder_inputs(decoder_inputs))
     return (token_ids.to(device),
             atn_mask.to(device),
             token_clusters.to(device),

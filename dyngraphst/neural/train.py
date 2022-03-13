@@ -29,7 +29,10 @@ def make_loaders(data: tuple[BatchItems, BatchItems, BatchItems],
                  batch_size_train: int = 16,
                  batch_size_dev: int = 64,
                  cls_dist: int = -999) -> tuple[DataLoader, DataLoader, DataLoader]:
-    train, dev, test = [[sample for sample in subset if len(sample[0][0]) <= max_seq_len] for subset in data]
+    train, dev, test = [[sample for sample in subset
+                         if len(sample[0][0]) <= max_seq_len]
+                         # and max(map(len, sample[1])) < max_type_depth]
+                        for subset in data]
     collate_fn = make_collator(device, pad_token_id=pad_token_id, cls_dist=cls_dist)
     return (DataLoader(train, batch_size_train, shuffle=True, collate_fn=collate_fn),
             DataLoader(sorted(dev, key=lambda x: len(x[0][0])), batch_size_dev, shuffle=False, collate_fn=collate_fn),
@@ -50,7 +53,8 @@ def train(device: str,
           depth_per_epoch: Callable[[int], int],
           pad_token_id: int,
           sep_token_id: int,
-          num_epochs: int = None):
+          num_epochs: int = None,
+          batch_size: int = 16):
 
     def logprint(msg: str):
         with open(log_path, 'a') as f:
@@ -58,7 +62,8 @@ def train(device: str,
             print(msg)
 
     data = load_data(data_path)
-    train_dl = make_loaders(data, device, max_seq_len=max_seq_len, pad_token_id=pad_token_id)[0]
+    train_dl = make_loaders(data=data, device=device, max_seq_len=max_seq_len,
+                            pad_token_id=pad_token_id, batch_size_train=batch_size)[0]
     model = Tagger(num_classes=num_classes,
                    max_dist=max_dist,
                    encoder_core=encoder_core,
@@ -160,7 +165,7 @@ def evaluate(device: str,
     model.load(model_path, map_location=device)
     model.eval()
     data = load_data(data_path)
-    dl = make_loaders(data, device, max_seq_len=max_seq_len, pad_token_id=pad_token_id)[2 if test_set else 1]
+    dl = make_loaders(data, device, pad_token_id=pad_token_id, max_seq_len=max_seq_len)[2 if test_set else 1]
     model.path_encoder.precompute(2 ** max_depth + 1)
     with torch.no_grad():
         dev_outs = []

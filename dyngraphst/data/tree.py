@@ -157,7 +157,7 @@ class Symbol:
 
     def __repr__(self) -> str: return self.name if self.index is None else f"{self.name}:{self.index}"
     def __eq__(self, other) -> bool: return isinstance(other, Symbol) and self.name == other.name
-    def __hash__(self) -> int: return hash((self.name, self.index))
+    def __hash__(self) -> int: return hash((self.name,))
 
     def plain(self) -> Symbol:
         return Symbol(self.name, None, None)

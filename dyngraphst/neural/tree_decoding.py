@@ -4,6 +4,7 @@ import pdb
 
 import torch
 from torch.nn import Module, Linear, Parameter, LeakyReLU
+from torch.nn.functional import linear
 from torch.nn.utils.parametrizations import orthogonal
 from math import sqrt
 from torch import Tensor
@@ -12,6 +13,7 @@ from torch_scatter import scatter
 from torch_geometric.typing import OptTensor
 from torch_geometric.utils import softmax as sparse_softmax
 from .utils import SwiGLU, RMSNorm
+from .batching import pad_sequence
 
 
 class Decoder(Module):
@@ -123,13 +125,23 @@ class BinaryPathEncoder(Module):
         self.precomputed = None
 
     def precompute(self, up_to: int):
-        precomputed = [
-            torch.eye(self.dim, device=self.primitives.device),
-            self.primitives[0],
-            self.primitives[1]]
-        for i in range(3, up_to + 1):
-            precomputed.append(precomputed[(i + 1) // 2 - 1] @ self.primitives[(i + 1) % 2])
-        self.precomputed = torch.stack(precomputed) @ self.init
+        self.precomputed = self.eager_precompute(up_to + 1)
+
+    def eager_precompute(self, up_to: int):
+        words = [torch.tensor(self.node_pos_to_path(i), device=self.primitives.device, dtype=torch.long)
+                 for i in range(1, up_to + 1)]
+        words = pad_sequence(words, padding_value=2)
+        seeds = self.init.data.unsqueeze(0).repeat(words.shape[0], 1)
+        for step in range(words.shape[1]):
+            seeds[words[:, step] == 0] = linear(seeds[words[:, step] == 0], self.primitives[0])
+            seeds[words[:, step] == 1] = linear(seeds[words[:, step] == 1], self.primitives[1])
+        return seeds
+
+    @staticmethod
+    def node_pos_to_path(idx: int) -> list[int]:
+        if idx == 1:
+            return []
+        return [idx % 2] + BinaryPathEncoder.node_pos_to_path(idx // 2)
 
     def forward(self, node_positions: Tensor) -> Tensor:
         return torch.index_select(self.precomputed, 0, node_positions - 1)
