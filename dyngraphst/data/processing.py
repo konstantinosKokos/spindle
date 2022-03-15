@@ -51,6 +51,12 @@ def make_symbol_map(symbols: set[tuple[Symbol, int]]) -> tuple[dict[int, Symbol]
     return id_to_symbol, symbol_to_arity
 
 
+def write_symbol_map(id_to_symbol: dict[int, Symbol], symbol_to_arity: dict[Symbol, int], path: str):
+    with open(path, 'w') as f:
+        for i in range(len(id_to_symbol)):
+            f.write(f'{i}\t{id_to_symbol[i]}\t{symbol_to_arity[id_to_symbol[i]]}\n')
+
+
 def whitespace_punct(s: str) -> str:
     return ' '.join(s.replace('\xad', '-').translate(str.maketrans({k: f' {k} ' for k in "!?.,"})).split())
 

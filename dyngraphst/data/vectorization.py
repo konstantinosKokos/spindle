@@ -6,12 +6,18 @@ from .tree import Tree, Leaf, Binary
 
 import torch
 from torch import Tensor
-from transformers import BertTokenizer, RobertaTokenizer, CamembertTokenizer
+from transformers import BertTokenizer, RobertaTokenizer, CamembertTokenizer, FlaubertTokenizer
+
+
+tokenizer_types = {'bert': BertTokenizer,
+                   'roberta': RobertaTokenizer,
+                   'camembert': CamembertTokenizer,
+                   'flaubert': FlaubertTokenizer}
 
 
 class Tokenizer:
     def __init__(self, core: str, bert_type: str):
-        cls = {'bert': BertTokenizer, 'roberta': RobertaTokenizer, 'camembert': CamembertTokenizer}[bert_type]
+        cls = tokenizer_types[bert_type]
         self.core = cls.from_pretrained(core)
 
     def encode_words(self, words: list[str]) -> tuple[Tensor, Tensor]:

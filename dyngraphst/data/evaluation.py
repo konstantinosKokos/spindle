@@ -31,10 +31,7 @@ def trees_to_frames(trees: list[Tree[Symbol]], splitpoints: list[int]) -> list[l
 
 def merge_preds_on_true(preds: list[Tree[Symbol]], indices: list[int]) -> list[Tree[Symbol]]:
     def check_rest(ps: list[Tree[Symbol]]) -> bool:
-        if not all(p == MWU for p in ps):
-            print(ps)
-            return False
-        return True
+        return all(p == MWU for p in ps)
     return [preds[i] if check_rest(preds[i+1:end]) else MWU for i, end in zip(indices, indices + [len(preds)])]
 
 
@@ -63,10 +60,12 @@ def evaluate_results_file(results_file: str, atom_map_path: str, occurrence_file
     print('Frame-wise accuracy:')
     print(f'{sum(map(eq, pred_frames, gold_frames)) / len(gold_frames)} ({len(gold_frames)})')
 
-    if occurrence_file is not None:
-        with open(occurrence_file, 'rb') as f:
-            nzero = pickle.load(f)
-            occurrence_counts = defaultdict(lambda: 0, nzero)
+    if occurrence_file is None:
+        return
+
+    with open(occurrence_file, 'rb') as f:
+        nzero = pickle.load(f)
+        occurrence_counts = defaultdict(lambda: 0, nzero)
 
     # occurrence-wise
     rest = [i for i in range(len(pred_trees)) if occurrence_counts[gold_trees[i]] >= 100]
