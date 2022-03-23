@@ -33,6 +33,9 @@ Averages of 6 repetitions compared to recent results on the respective datasets 
         <td><center><b>OOV</b></center></td>
     </tr>
     <tr>
+        <td colspan="6"></td>
+    </tr>
+    <tr>
         <td colspan="6"><center><b><i>CCGbank</i></b></center></td>
     </tr>
     <tr>
@@ -50,6 +53,9 @@ Averages of 6 repetitions compared to recent results on the respective datasets 
         <td>72.06</td>
         <td>34.45</td>
         <td>4.55</td>
+    </tr>
+    <tr>
+        <td colspan="6"></td>
     </tr>
     <tr>
         <td colspan="6"><center><b><i>CCGrebank</i></b></center></td>
@@ -71,6 +77,9 @@ Averages of 6 repetitions compared to recent results on the respective datasets 
         <td>4.55</td>
     </tr>
     <tr>
+        <td colspan="6"></td>
+    </tr>
+    <tr>
         <td colspan="6"><center><b><i>French TLGbank</i></b></center></td>
     </tr>
     <tr>
@@ -88,6 +97,9 @@ Averages of 6 repetitions compared to recent results on the respective datasets 
         <td>81.48</td>
         <td>55.37</td>
         <td>7.25</td>
+    </tr>
+    <tr>
+        <td colspan="6"></td>
     </tr>
     <tr>
         <td colspan="6"><center><b><i>Æthel</i></b></center></td>
