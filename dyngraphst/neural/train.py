@@ -31,7 +31,6 @@ def make_loaders(data: tuple[BatchItems, BatchItems, BatchItems],
                  cls_dist: int = -999) -> tuple[DataLoader, DataLoader, DataLoader]:
     train, dev, test = [[sample for sample in subset
                          if len(sample[0][0]) <= max_seq_len]
-                         # and max(map(len, sample[1])) < max_type_depth]
                         for subset in data]
     collate_fn = make_collator(device, pad_token_id=pad_token_id, cls_dist=cls_dist)
     return (DataLoader(train, batch_size_train, shuffle=True, collate_fn=collate_fn),
