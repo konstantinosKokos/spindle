@@ -107,7 +107,7 @@ def train(device: str,
             (token_ids, atn_mask, token_clusters,
              root_edge_index, root_edge_dist,
              root_to_node_index, node_ids,
-             node_pos, numels) = batch
+             node_pos, _) = batch
             opt.zero_grad(set_to_none=True)
             out = model.forward_train(input_ids=token_ids,
                                       attention_mask=atn_mask,
@@ -117,7 +117,7 @@ def train(device: str,
                                       node_pos=node_pos[:max_depth],
                                       root_dist=root_edge_dist,
                                       root_edge_index=root_edge_index)
-            loss = loss_fn.forward_many(out, node_ids[:max_depth], numels[:max_depth]) / token_clusters.max()
+            loss = loss_fn.forward_many(out, node_ids[:max_depth]) / token_clusters.max()
             loss.backward()
             clip_grad_norm_(model.parameters(), 1.)
             opt.step()

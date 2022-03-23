@@ -7,7 +7,7 @@ MAX_SEQ_LEN = 199
 
 
 def train_ccgbank(device: str, storage_dir: str, log_path: str, init_epoch: int = 0,
-                  data_path: str = './experiments/ccg/vectorized_original.p',
+                  data_path: str = './experiments/ccg/original/vectorized.p',
                   max_dist: int = MAX_DIST, schedule_epochs: int = NUM_EPOCHS, max_seq_len: int = MAX_SEQ_LEN,
                   **kwargs):
     train(device=device, encoder_core='roberta-base', bert_type='roberta', storage_dir=storage_dir,
@@ -16,7 +16,7 @@ def train_ccgbank(device: str, storage_dir: str, log_path: str, init_epoch: int 
           depth_per_epoch=lambda _: 7, pad_token_id=1, sep_token_id=2, **kwargs)
 
 
-def evaluate_ccgbank(device: str, model_path: str, data_path: str = './experiments/ccg/vectorized_original.p',
+def evaluate_ccgbank(device: str, model_path: str, data_path: str = './experiments/ccg/original/vectorized.p',
                      storage_path: str = None, max_dist: int = MAX_DIST,
                      max_seq_len: int = MAX_SEQ_LEN, max_type_depth: int = 10, test_set: bool = False):
     evaluate(device=device, encoder_core='roberta-base', bert_type='roberta', model_path=model_path,
@@ -63,7 +63,7 @@ def evaluate_nl_sparse(device: str, model_path: str, data_path: str = './experim
 
 
 def train_rebank(device: str, storage_dir: str, log_path: str, init_epoch: int = 0,
-                 data_path: str = './experiments/ccg/vectorized_rebank.p',
+                 data_path: str = './experiments/ccg/rebank/vectorized.p',
                  max_dist: int = MAX_DIST, schedule_epochs: int = NUM_EPOCHS, max_seq_len: int = MAX_SEQ_LEN, **kwargs):
     train(device=device, encoder_core='roberta-base', bert_type='roberta', storage_dir=storage_dir,
           log_path=log_path, init_epoch=init_epoch, data_path=data_path, num_classes=40,
@@ -71,7 +71,7 @@ def train_rebank(device: str, storage_dir: str, log_path: str, init_epoch: int =
           depth_per_epoch=lambda _: 7, pad_token_id=1, sep_token_id=2, **kwargs)
 
 
-def evaluate_rebank(device: str, model_path: str, data_path: str = './experiments/ccg/vectorized_rebank.p',
+def evaluate_rebank(device: str, model_path: str, data_path: str = './experiments/ccg/rebank/vectorized.p',
                     storage_path: str = None, max_dist: int = MAX_DIST,
                     max_seq_len: int = MAX_SEQ_LEN, max_type_depth: int = 10, test_set: bool = False):
     evaluate(device=device, encoder_core='roberta-base', bert_type='roberta', model_path=model_path,
@@ -108,7 +108,8 @@ def train_french_sparse(device: str, storage_dir: str, log_path: str, init_epoch
           depth_per_epoch=lambda _: 2, pad_token_id=1, sep_token_id=6, **kwargs)
 
 
-def evaluate_french_sparse(device: str, model_path: str, data_path: str = './experiments/french_tlg/vectorized_sparse.p',
+def evaluate_french_sparse(device: str, model_path: str,
+                           data_path: str = './experiments/french_tlg/vectorized_sparse.p',
                            storage_path: str = None, max_dist: int = MAX_DIST,
                            max_seq_len: int = MAX_SEQ_LEN, max_type_depth: int = 2, test_set: bool = False):
     evaluate(device=device, encoder_core='camembert-base', bert_type='camembert', model_path=model_path,

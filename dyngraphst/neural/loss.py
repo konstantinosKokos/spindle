@@ -10,10 +10,10 @@ class GroupedLoss(Module):
         self.loss_fn = CrossEntropyLoss(reduction='none', label_smoothing=label_smoothing)
         self.reduction = reduction
 
-    def forward_many(self, predictions: list[Tensor], targets: list[Tensor], numels: list[Tensor]) -> Tensor:
-        return sum(map(self.forward, predictions, targets, numels))
+    def forward_many(self, predictions: list[Tensor], targets: list[Tensor]) -> Tensor:
+        return sum(map(self.forward, predictions, targets))
 
-    def forward(self, prediction: Tensor, target: Tensor, numel: Tensor) -> Tensor:
+    def forward(self, prediction: Tensor, target: Tensor) -> Tensor:
         loss = self.loss_fn(prediction, target)
 
         if self.reduction == 'mean':
