@@ -1,9 +1,22 @@
 # Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions
 
-This is our code for the paper [Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions]().
+This is our code for the paper [Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions](https://arxiv.org/abs/2203.12235).
 
 ## Citing
-coming soon
+While unpublished, you can cite the arxiv preprint:
+```latex
+@misc{https://doi.org/10.48550/arxiv.2203.12235,
+  doi = {10.48550/ARXIV.2203.12235},  
+  url = {https://arxiv.org/abs/2203.12235},
+  author = {Kogkalidis, Konstantinos and Moortgat, Michael},
+  keywords = {Computation and Language (cs.CL), Machine Learning (cs.LG), FOS: Computer and information sciences, FOS: Computer and information sciences},
+  title = {Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions},
+  publisher = {arXiv},
+  year = {2022},
+  copyright = {Creative Commons Attribution 4.0 International}
+}
+
+```
 
 ## About
 The model presents a new approach to constructive supertagging, based on an explicit graph representation that accounts
