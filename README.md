@@ -22,7 +22,7 @@ While unpublished, you can cite the arxiv preprint:
 
 ## About
 The model presents a new approach to constructive supertagging, based on an explicit graph representation that accounts
-for both the _intra_-tree interactions between a single supertag and the _inter_-tree interactions between supertag
+for both the _intra_-tree interactions between a single supertag and the _inter_-tree interactions between (partially decoded) supertag
 sequences.
 To account for the disparity between the various modalities in the graph 
 (i.e. entential word order, subword contextualized vectors, tree-sequence order and intra-tree edges) we adopt a 
