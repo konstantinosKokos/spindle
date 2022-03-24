@@ -1,5 +1,7 @@
 # Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions
 
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/geometry-aware-supertagging-with/ccg-supertagging-on-ccgbank)](https://paperswithcode.com/sota/ccg-supertagging-on-ccgbank?p=geometry-aware-supertagging-with)
+
 This is our code for the paper [Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions](https://arxiv.org/abs/2203.12235).
 
 ## Citing
