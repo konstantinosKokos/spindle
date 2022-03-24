@@ -25,7 +25,7 @@ The model presents a new approach to constructive supertagging, based on an expl
 for both the _intra_-tree interactions between a single supertag and the _inter_-tree interactions between (partially decoded) supertag
 sequences.
 To account for the disparity between the various modalities in the graph 
-(i.e. entential word order, subword contextualized vectors, tree-sequence order and intra-tree edges) we adopt a 
+(i.e. sentential word order, subword contextualized vectors, tree-sequence order and intra-tree edges) we adopt a 
 heterogeneous formulation.
 Decoding is performed in parallel over trees, each temporal step associated with an increased tree depth.
 Statefulness is achieved by representing each partially decoded tree with a single state-tracking vector, which is 
