@@ -72,7 +72,7 @@ def binarize_content(tree: Tree[Symbol]) -> Tree[Symbol]:
 
 
 def parse_line(line: str) -> Sample:
-    binarize = binarize_content
+    binarize = binarize_structurally
     tokens = line.split()
     words, _, cats = list(zip(*[t.split('|') for t in tokens]))
     trees_0 = list(map(eval, cats))
