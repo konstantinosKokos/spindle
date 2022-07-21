@@ -15,10 +15,10 @@ tokenizer_types = {'bert': BertTokenizer,
 TokenizedSentence = tuple[list[int], list[int]]                 # token_ids, cluster_ids
 TokenizedSymbol = tuple[int, int, int, int | None]              # token index, positional index, numels, link index
 TokenizedTrees = list[list[list[TokenizedSymbol]]]              # level trees
-TokenPosition = tuple[int, int, int]                            # tree index, level, horizontal position
+TokenPosition = tuple[int, int, int]                            # level index, tree index, horizontal position
 TokenizedMatching = list[tuple[TokenPosition, TokenPosition]]   # list of (positive, negative) pairs
-TokenizedMatchings = list[TokenizedMatching]                    # list of matchings, one per atom
-TokenizedSample = tuple[TokenizedSentence, TokenizedTrees, TokenizedMatchings]
+TokenizedMatchings = dict[int, [TokenizedMatching]]             # list of matchings, one per atom
+TokenizedSample = tuple[TokenizedSentence, TokenizedTrees, TokenizedMatchings | None]
 
 
 class Tokenizer:
@@ -72,14 +72,14 @@ class AtomTokenizer:
     def encode_trees(self, trees: list[Tree[Symbol]]) -> list[list[list[TokenizedSymbol]]]:
         return [self.encode_tree(t) for t in trees]
 
-    def group_indices_by_atom(self, links: dict[Symbol, Symbol]) -> dict[str, [dict[int, int]]]:
-        return {atom: {neg.index: pos.index for pos, neg in links.items() if pos.name == atom}
-                for atom in set(k.name for k in links.keys())}
+    def group_indices_by_atom(self, links: dict[Symbol, Symbol]) -> dict[Symbol, [dict[int, int]]]:
+        return {atom: {neg.index: pos.index for pos, neg in links.items() if pos.plain() == atom}
+                for atom in set(k.plain() for k in links.keys())}
 
     def encode_links(self,
                      links: dict[Symbol, Symbol],
                      tree_levels: list[list[list[TokenizedSymbol]]]) -> dict[str, TokenizedMatching]:
-        index_to_pos = {link_index: (i, j, k)
+        index_to_pos = {link_index: (j, i, k)
                         for i, tree in enumerate(tree_levels)
                         for j, level in enumerate(tree)
                         for k, (_, _, _, link_index) in enumerate(level)
@@ -89,7 +89,7 @@ class AtomTokenizer:
             return index_to_pos[link_index]
 
         grouped_links = self.group_indices_by_atom(links)
-        return {atom: [(locate_index(neg), locate_index(pos)) for neg, pos in atom_links.items()]
+        return {self.atom_to_id(atom): [(locate_index(neg), locate_index(pos)) for neg, pos in atom_links.items()]
                 for atom, atom_links in grouped_links.items()}
 
     @staticmethod
@@ -109,7 +109,10 @@ def encode_sample(
         tokenizer: Tokenizer) -> TokenizedSample:
     encoder_inputs = tokenizer.encode_sample(sample)
     decoder_inputs = atokenizer.encode_trees(sample.trees)
-    parser_inputs = list(atokenizer.encode_links(sample.links, decoder_inputs).values())
+    if sample.links is not None:
+        parser_inputs = atokenizer.encode_links(sample.links, decoder_inputs)
+    else:
+        parser_inputs = None
     return encoder_inputs, decoder_inputs, parser_inputs
 
 
