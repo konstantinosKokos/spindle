@@ -3,9 +3,6 @@ from __future__ import annotations
 from .processing import Sample, Symbol, whitespace_punct
 from .tree import Tree, Leaf, Binary
 
-
-import torch
-from torch import Tensor
 from transformers import BertTokenizer, RobertaTokenizer, CamembertTokenizer, FlaubertTokenizer
 
 
@@ -15,22 +12,32 @@ tokenizer_types = {'bert': BertTokenizer,
                    'flaubert': FlaubertTokenizer}
 
 
+TokenizedSentence = tuple[list[int], list[int]]                 # token_ids, cluster_ids
+TokenizedSymbol = tuple[int, int, int, int | None]              # token index, positional index, numels, link index
+TokenizedTrees = list[list[list[TokenizedSymbol]]]              # level trees
+TokenPosition = tuple[int, int, int]                            # tree index, level, horizontal position
+TokenizedMatching = list[tuple[TokenPosition, TokenPosition]]   # list of (positive, negative) pairs
+TokenizedMatchings = list[TokenizedMatching]                    # list of matchings, one per atom
+TokenizedSample = tuple[TokenizedSentence, TokenizedTrees, TokenizedMatchings]
+
+
 class Tokenizer:
     def __init__(self, core: str, bert_type: str):
         cls = tokenizer_types[bert_type]
         self.core = cls.from_pretrained(core)
 
-    def encode_words(self, words: list[str]) -> tuple[Tensor, Tensor]:
-        subword_tokens = [[self.core.cls_token_id]] + \
-                         [self.core.encode(w, add_special_tokens=False) for w in words] + \
-                         [[self.core.sep_token_id]]
-        word_clusters = [[i] * len(subword_tokens[i]) for i in range(len(subword_tokens) - 1)] + [[-1]]
-        return torch.tensor(sum(subword_tokens, [])), torch.tensor(sum(word_clusters, []))
+    def encode_words(self, words: list[str]) -> TokenizedSentence:
+        def f(w: str) -> list[int]:
+            return self.core.encode(w, add_special_tokens=False)
+        sentence = [(t, i + 1) for i, w in enumerate(words) for t in f(w)]
+        sentence = [(self.core.cls_token_id, 0), *sentence, (self.core.sep_token_id, -1)]
+        token_ids, cluster_ids = zip(*sentence)
+        return list(token_ids), list(cluster_ids)
 
-    def encode_sentence(self, sentence: str) -> tuple[Tensor, Tensor]:
+    def encode_sentence(self, sentence: str) -> TokenizedSentence:
         return self.encode_words(whitespace_punct(sentence).split())
 
-    def encode_sample(self, sample: Sample) -> tuple[Tensor, Tensor]:
+    def encode_sample(self, sample: Sample) -> TokenizedSentence:
         return self.encode_words(sample.words)
 
 
@@ -46,27 +53,44 @@ class AtomTokenizer:
     def atom_to_id(self, atom: Symbol) -> int: return self.token_to_id[atom]
     def id_to_atom(self, idx: int) -> Symbol: return self.id_to_token[idx]
 
-    def positionally_encode_tree(self, tree: Tree[Symbol]) -> Tree[tuple[int, int, int]]:
-        def f(_tree: Tree[Symbol], parent: int) -> Tree[tuple[int, int, int]]:
+    def tokenize_tree(self, tree: Tree[Symbol]) -> Tree[TokenizedSymbol]:
+        def go(_tree: Tree[Symbol],
+               parent_pos: int) -> Tree[TokenizedSymbol]:
             match _tree:
                 case Leaf(atom):
-                    return Leaf((self.token_to_id[atom.plain()], parent, _tree.numel()))
-                case Binary(atom, left, right):
-                    return Binary((self.token_to_id[atom.plain()], parent, _tree.numel()),
-                                  f(left, 2 * parent),
-                                  f(right, 2 * parent + 1),)
-                case _:
-                    raise TypeError(f'Unsupported tree type: {_tree}')
-        return f(tree, 1)
+                    return Leaf((self.atom_to_id(atom.plain()), parent_pos, _tree.numel(), atom.index))
+                case Binary(node, left, right):
+                    left = go(left, 2 * parent_pos)
+                    right = go(right, 2 * parent_pos + 1)
+                    return Binary((self.atom_to_id(node.plain()), parent_pos, _tree.numel(), None), left, right)
+            raise TypeError('Invalid tree type')
+        return go(tree, 1)
 
-    def encode_tree(self, tree: Tree[Symbol]) -> list[list[tuple[int, int, int]]]:
-        return self.positionally_encode_tree(tree).levels()
+    def encode_tree(self, tree: Tree[Symbol]) -> list[list[TokenizedSymbol]]:
+        return self.tokenize_tree(tree).levels()
 
-    def encode_trees(self, trees: list[Tree[Symbol]]) -> list[list[list[tuple[int, int, int]]]]:
+    def encode_trees(self, trees: list[Tree[Symbol]]) -> list[list[list[TokenizedSymbol]]]:
         return [self.encode_tree(t) for t in trees]
 
-    def encode_sample(self, sample: Sample) -> list[list[list[tuple[int, int, int]]]]:
-        return self.encode_trees(sample.trees)
+    def group_indices_by_atom(self, links: dict[Symbol, Symbol]) -> dict[str, [dict[int, int]]]:
+        return {atom: {neg.index: pos.index for pos, neg in links.items() if pos.name == atom}
+                for atom in set(k.name for k in links.keys())}
+
+    def encode_links(self,
+                     links: dict[Symbol, Symbol],
+                     tree_levels: list[list[list[TokenizedSymbol]]]) -> dict[str, TokenizedMatching]:
+        index_to_pos = {link_index: (i, j, k)
+                        for i, tree in enumerate(tree_levels)
+                        for j, level in enumerate(tree)
+                        for k, (_, _, _, link_index) in enumerate(level)
+                        if link_index is not None}
+
+        def locate_index(link_index: int) -> TokenPosition:
+            return index_to_pos[link_index]
+
+        grouped_links = self.group_indices_by_atom(links)
+        return {atom: [(locate_index(neg), locate_index(pos)) for neg, pos in atom_links.items()]
+                for atom, atom_links in grouped_links.items()}
 
     @staticmethod
     def from_file(file_path: str) -> AtomTokenizer:
@@ -82,20 +106,17 @@ class AtomTokenizer:
 def encode_sample(
         sample: Sample,
         atokenizer: AtomTokenizer,
-        tokenizer: Tokenizer) -> tuple[tuple[Tensor, Tensor], list[list[list[tuple[int, int, int]]]]]:
-    return tokenizer.encode_sample(sample), atokenizer.encode_trees(sample.trees)
+        tokenizer: Tokenizer) -> TokenizedSample:
+    encoder_inputs = tokenizer.encode_sample(sample)
+    decoder_inputs = atokenizer.encode_trees(sample.trees)
+    parser_inputs = list(atokenizer.encode_links(sample.links, decoder_inputs).values())
+    return encoder_inputs, decoder_inputs, parser_inputs
 
 
-def vectorize(data: tuple[list[Sample], list[Sample], list[Sample]],
+def vectorize(data: tuple[list[Sample], ...],
               atom_map_path: str,
               bert_name: str,
-              bert_type: str) \
-        -> tuple[list[tuple[tuple[Tensor, Tensor], list[list[list[tuple[int, int, int]]]]]],
-                 list[tuple[tuple[Tensor, Tensor], list[list[list[tuple[int, int, int]]]]]],
-                 list[tuple[tuple[Tensor, Tensor], list[list[list[tuple[int, int, int]]]]]]]:
-    atoken = AtomTokenizer.from_file(atom_map_path)
+              bert_type: str) -> tuple[list[TokenizedSample], ...]:
+    atokenizer = AtomTokenizer.from_file(atom_map_path)
     tokenizer = Tokenizer(bert_name, bert_type)
-    train, dev, test = data
-    return ([encode_sample(s, atoken, tokenizer) for s in train],
-            [encode_sample(s, atoken, tokenizer) for s in dev],
-            [encode_sample(s, atoken, tokenizer) for s in test])
+    return tuple([encode_sample(s, atokenizer, tokenizer) for s in subset] for subset in data)

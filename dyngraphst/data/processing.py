@@ -35,7 +35,7 @@ class Sample:
     # todo: type-level conversions
     words: list[str]
     trees: list[Tree[Symbol]]
-    links: dict[Tree[Symbol], Tree[Symbol]] | None = None
+    links: dict[Symbol, Symbol] | None = None
     source: str | None = None
     subset: str | None = None
 
