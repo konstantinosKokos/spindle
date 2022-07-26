@@ -1,7 +1,6 @@
-import pdb
 
 from torch import Tensor
-from torch.nn import Module, Linear, Dropout
+from torch.nn import Module, Linear
 from transformers import BertModel, RobertaModel, CamembertModel
 
 from torch_geometric.nn import GlobalAttention
@@ -10,13 +9,13 @@ from .utils import RMSNorm
 
 class Encoder(Module):
     def __init__(self,
-                 core: str,
+                 config_or_name: dict | str,
                  bert_type: str,
                  sep_token_id: int,
                  bottleneck_dim: int = 768):
         super().__init__()
         cls = {'bert': BertModel, 'roberta': RobertaModel, 'camembert': CamembertModel}[bert_type]
-        self.core = cls.from_pretrained(core)
+        self.core = cls.from_pretrained(config_or_name) if isinstance(config_or_name, str) else cls._from_config(config_or_name)
         self.aggregator = GlobalAttention(gate_nn=Linear(self.core.config.hidden_size, 1),
                                           nn=Linear(self.core.config.hidden_size, bottleneck_dim, bias=False))
         self.norm = RMSNorm(bottleneck_dim)

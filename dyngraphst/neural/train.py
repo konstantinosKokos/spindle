@@ -1,10 +1,10 @@
 import pdb
 
-from .batching import BatchItems, make_collator
+from .batching import TokenizedSample, make_collator
 import pickle
 from torch.utils.data import DataLoader
-from .model import Tagger
-from .loss import GroupedLoss
+from .model import Parser
+from .loss import TaggingLoss, LinkingLoss
 
 import torch
 from collections import defaultdict
@@ -17,13 +17,17 @@ from time import time
 from typing import Callable
 
 
-def load_data(path: str) -> tuple[BatchItems, BatchItems, BatchItems]:
+TokenizedSamples = list[TokenizedSample]
+_Dataset = tuple[TokenizedSamples, TokenizedSamples, TokenizedSamples]
+
+
+def load_data(path: str) -> tuple[TokenizedSamples, TokenizedSamples, TokenizedSamples]:
     with open(path, "rb") as f:
         return pickle.load(f)
 
 
-def make_loaders(data: tuple[BatchItems, BatchItems, BatchItems],
-                 device: str,
+def make_loaders(data: _Dataset,
+                 device: torch.device,
                  pad_token_id: int,
                  max_seq_len: int,
                  batch_size_train: int = 16,
@@ -38,7 +42,7 @@ def make_loaders(data: tuple[BatchItems, BatchItems, BatchItems],
             DataLoader(sorted(test, key=lambda x: len(x[0][0])), batch_size_dev, shuffle=False, collate_fn=collate_fn))
 
 
-def train(device: str,
+def train(device: torch.device,
           encoder_core: str,
           bert_type: str,
           storage_dir: str,
@@ -63,14 +67,15 @@ def train(device: str,
     data = load_data(data_path)
     train_dl = make_loaders(data=data, device=device, max_seq_len=max_seq_len,
                             pad_token_id=pad_token_id, batch_size_train=batch_size)[0]
-    model = Tagger(num_classes=num_classes,
+    model = Parser(num_classes=num_classes,
                    max_dist=max_dist,
-                   encoder_core=encoder_core,
+                   encoder_config_or_name=encoder_core,
                    bert_type=bert_type,
                    sep_token_id=sep_token_id).to(device)
-    loss_fn = GroupedLoss(reduction='sum', label_smoothing=0.1)
+    tagging_loss_fn = TaggingLoss(reduction='sum', label_smoothing=0.1)
+    linking_loss_fn = LinkingLoss()
     opt = AdamW([
-        {'params': model.encoder.core.parameters(), 'lr': 1e-5},
+        {'params': model.encoder.core.parameters(), 'lr': 1e-5, 'weight_decay': 1e-2},
         {'params': sum(map(list, (model.decoder.parameters(),
                                   model.dist_embedding.parameters(),
                                   model.embedder.parameters(),
@@ -96,53 +101,92 @@ def train(device: str,
                          [schedule for _ in range(len(opt.param_groups))],
                          last_epoch=-1 if init_epoch == 0 else len(train_dl) * init_epoch)
 
+    ####################################################################################################################
+    # main loop
+    ####################################################################################################################
     for epoch in range(init_epoch, schedule_epochs if num_epochs is None else num_epochs):
-        max_depth = depth_per_epoch(epoch)
         model.train()
-        epoch_loss = 0.
-        epoch_stats = defaultdict(lambda: (0, 0))
-        now = time()
+        max_depth = depth_per_epoch(epoch)
+        epoch_loss = (0, 0)
+        tagging_accuracy = defaultdict(lambda: (0, 0))
+        linking_accuracy = defaultdict(lambda: (0, 0))
+        start = time()
+        ################################################################################################################
+        # epoch loop
+        ################################################################################################################
         for batch in train_dl:
-            (token_ids, atn_mask, token_clusters,
-             root_edge_index, root_edge_dist,
-             root_to_node_index, node_ids,
-             node_pos, _) = batch
             opt.zero_grad(set_to_none=True)
-            out = model.forward_train(input_ids=token_ids,
-                                      attention_mask=atn_mask,
-                                      token_clusters=token_clusters,
-                                      node_to_root_index=root_to_node_index[:max_depth],
-                                      node_ids=node_ids[:max_depth],
-                                      node_pos=node_pos[:max_depth],
-                                      root_dist=root_edge_dist,
-                                      root_edge_index=root_edge_index)
-            loss = loss_fn.forward_many(out, node_ids[:max_depth]) / token_clusters.max()
+            token_preds, matches = model.forward_train(
+                input_ids=batch.encoder_batch.token_ids,
+                attention_mask=batch.encoder_batch.atn_mask,
+                token_clusters=batch.encoder_batch.cluster_ids,
+                node_to_root_index=batch.decoder_batch.edge_index[:max_depth],
+                node_ids=batch.decoder_batch.token_ids[:max_depth],
+                node_pos=batch.decoder_batch.pos_ids[:max_depth],
+                root_edge_index=batch.encoder_batch.edge_index,
+                root_dist=batch.encoder_batch.edge_attr,
+                link_indices=batch.parser_batch.indices)
+            ############################################################################################################
+            # backprop
+            ############################################################################################################
+            tagging_loss = tagging_loss_fn(token_preds, batch.decoder_batch.token_ids[:max_depth])
+            tagging_loss = tagging_loss / batch.encoder_batch.cluster_ids.max()
+            linking_loss = linking_loss_fn(matches)
+            loss = tagging_loss + linking_loss * 0.1
             loss.backward()
             clip_grad_norm_(model.parameters(), 1.)
             opt.step()
             scheduler.step()
-            epoch_loss += loss.item()
-            for depth in range(len(out)):
-                correct = epoch_stats[depth][0] + out[depth].argmax(dim=1).eq(node_ids[depth]).sum().item()
-                total = epoch_stats[depth][1] + len(node_ids[depth])
-                epoch_stats[depth] = (correct, total)
-        duration = time() - now
+            ############################################################################################################
+            # logging
+            ############################################################################################################
+            prev_tagging_loss, prev_linking_loss = epoch_loss
+            epoch_loss = (prev_tagging_loss + tagging_loss.item(), prev_linking_loss + linking_loss.item())
+            with torch.no_grad():
+                for depth, depth_preds in enumerate(token_preds):
+                    prev_correct, prev_total = tagging_accuracy[depth]
+                    batch_correct = depth_preds.argmax(dim=1).eq(batch.decoder_batch.token_ids[depth]).sum().item()
+                    correct = prev_correct + batch_correct
+                    total = prev_total + len(batch.decoder_batch.token_ids[depth])
+                    tagging_accuracy[depth] = (correct, total)
+                for match in matches:
+                    batch_size, num_candidates = match.shape[:-1]
+                    prev_correct, prev_total = linking_accuracy[num_candidates]
+                    truth = torch.arange(num_candidates, device=device).repeat(batch_size)
+                    batch_correct = match.argmax(dim=2).flatten().eq(truth).sum().item()
+                    correct = prev_correct + batch_correct
+                    total = prev_total + batch_size * num_candidates
+                    linking_accuracy[num_candidates] = (correct, total)
+        ################################################################################################################
+        # epoch report
+        ################################################################################################################
+        duration = time() - start
         torch.save(model.state_dict(), f'{storage_dir}/model_{epoch}.pt')
         torch.save(opt.state_dict(), f'{storage_dir}/opt_{epoch}.pt')
+        epoch_tagging_loss, epoch_linking_loss = epoch_loss
         message = f'Epoch {epoch}\n'
         message += '=' * 20 + '\n'
         message += f'Time: {duration} ({len(train_dl)/duration} batch/sec)\n'
         message += f'Last LRs: {scheduler.get_last_lr()}\n'
-        message += f'Loss: {epoch_loss / len(train_dl)}\n'
-        for depth in sorted(epoch_stats.keys()):
-            correct, total = epoch_stats[depth]
+        message += f'Tagging Loss: {epoch_tagging_loss / len(train_dl)}\n'
+        message += f'Linking Loss: {epoch_linking_loss / len(train_dl)}\n'
+        for depth in sorted(tagging_accuracy.keys()):
+            correct, total = tagging_accuracy[depth]
             message += f'Depth {depth}: {correct}/{total} ({correct / total:.2f})\n'
-        correct, total = sum(map(lambda x: x[0], epoch_stats.values())), sum(map(lambda x: x[1], epoch_stats.values()))
+        correct = sum(map(lambda x: x[0], tagging_accuracy.values()))
+        total = sum(map(lambda x: x[1], tagging_accuracy.values()))
+        message += f'Total: {correct}/{total} ({correct / total:.2f})\n'
+        for num_candidates in sorted(linking_accuracy.keys()):
+            correct, total = linking_accuracy[num_candidates]
+            message += f'{num_candidates} candidates: {correct}/{total} ({correct / total:.2f})\n'
+        correct = sum(map(lambda x: x[0], linking_accuracy.values()))
+        total = sum(map(lambda x: x[1], linking_accuracy.values()))
         message += f'Total: {correct}/{total} ({correct / total:.2f})\n'
         logprint(message)
 
 
-def evaluate(device: str,
+# todo
+def evaluate(device: torch.device,
              encoder_core: str,
              bert_type: str,
              model_path: str,
@@ -155,29 +199,37 @@ def evaluate(device: str,
              max_depth: int,
              sep_token_id: int,
              first_binary: int,
-             test_set: bool):
-    model = Tagger(num_classes=num_classes,
+             test_set: bool,
+             batch_size: int = 64):
+    model = Parser(num_classes=num_classes,
                    max_dist=max_dist,
-                   encoder_core=encoder_core,
+                   encoder_config_or_name=encoder_core,
                    bert_type=bert_type,
                    sep_token_id=sep_token_id).to(device)
+
     model.load(model_path, map_location=device)
     model.eval()
     data = load_data(data_path)
-    dl = make_loaders(data, device, pad_token_id=pad_token_id, max_seq_len=max_seq_len)[2 if test_set else 1]
+    dls = make_loaders(data, device, pad_token_id=pad_token_id, max_seq_len=max_seq_len, batch_size_dev=batch_size)
+    dl = dls[2 if test_set else 1]
     model.path_encoder.precompute(2 ** max_depth + 1)
+    start = time()
     with torch.no_grad():
         dev_outs = []
         for batch in dl:
-            (token_ids, atn_mask, token_clusters, root_edge_index,
-             root_edge_dist, _, node_ids, _, _) = batch
-            out = model.forward_dev(input_ids=token_ids, attention_mask=atn_mask,
-                                    token_clusters=token_clusters, root_edge_index=root_edge_index,
-                                    root_dist=root_edge_dist,
-                                    max_type_depth=max_depth,
-                                    first_binary=first_binary)
-            sent_lens = token_clusters.max(dim=1).values
-            dev_outs.append(([o.tolist() for o in out], [n.tolist() for n in node_ids], sent_lens.tolist()))
+            preds, _ , _ = model.forward_dev(input_ids=batch.encoder_batch.token_ids,
+                                             attention_mask=batch.encoder_batch.atn_mask,
+                                             token_clusters=batch.encoder_batch.cluster_ids,
+                                             root_edge_index=batch.encoder_batch.edge_index,
+                                             root_dist=batch.encoder_batch.edge_attr,
+                                             max_type_depth=max_depth,
+                                             first_binary=first_binary)
+            sent_lens = batch.encoder_batch.cluster_ids.max(dim=1).values
+            dev_outs.append(([o.tolist() for o in preds],
+                             [n.tolist() for n in batch.decoder_batch.token_ids],
+                             sent_lens.tolist()))
+    end = time()
+    print(end - start)
     if storage_path is not None:
         with open(storage_path, 'wb') as f:
             pickle.dump(dev_outs, f)

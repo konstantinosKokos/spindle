@@ -153,14 +153,13 @@ class Symbol:
 
     name: str
     index: int | None = None
-    logprob: float | None = None
 
     def __repr__(self) -> str: return self.name if self.index is None else f"{self.name}:{self.index}"
     def __eq__(self, other) -> bool: return isinstance(other, Symbol) and self.name == other.name
     def __hash__(self) -> int: return hash((self.name, self.index))
 
     def plain(self) -> Symbol:
-        return Symbol(self.name, None, None)
+        return Symbol(self.name, None)
 
 
 # tree = Binary(0, Binary(1, Leaf(3), Binary(4, Leaf(6), Unary(7, Leaf(9)))), Unary(2, Unary(5, Leaf(8))))

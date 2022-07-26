@@ -1,8 +1,8 @@
 from __future__ import annotations
-
 from .processing import Sample, Symbol, whitespace_punct
-from .tree import Tree, Leaf, Binary
+from .tree import Tree, Leaf, Unary, Binary, Node
 
+from itertools import groupby
 from transformers import BertTokenizer, RobertaTokenizer, CamembertTokenizer, FlaubertTokenizer
 
 
@@ -15,7 +15,7 @@ tokenizer_types = {'bert': BertTokenizer,
 TokenizedSentence = tuple[list[int], list[int]]                 # token_ids, cluster_ids
 TokenizedSymbol = tuple[int, int, int, int | None]              # token index, positional index, numels, link index
 TokenizedTrees = list[list[list[TokenizedSymbol]]]              # level trees
-TokenPosition = tuple[int, int, int]                            # level index, tree index, horizontal position
+TokenPosition = tuple[int, int, int, int]                       # link index, level index, tree index, position index
 TokenizedMatching = list[tuple[TokenPosition, TokenPosition]]   # list of (positive, negative) pairs
 TokenizedMatchings = dict[int, [TokenizedMatching]]             # list of matchings, one per atom
 TokenizedSample = tuple[TokenizedSentence, TokenizedTrees, TokenizedMatchings | None]
@@ -34,8 +34,9 @@ class Tokenizer:
         token_ids, cluster_ids = zip(*sentence)
         return list(token_ids), list(cluster_ids)
 
-    def encode_sentence(self, sentence: str) -> TokenizedSentence:
-        return self.encode_words(whitespace_punct(sentence).split())
+    def encode_sentence(self, sentence: str) -> tuple[TokenizedSentence, list[str]]:
+        words = whitespace_punct(sentence).split()
+        return self.encode_words(words), words
 
     def encode_sample(self, sample: Sample) -> TokenizedSentence:
         return self.encode_words(sample.words)
@@ -79,11 +80,11 @@ class AtomTokenizer:
     def encode_links(self,
                      links: dict[Symbol, Symbol],
                      tree_levels: list[list[list[TokenizedSymbol]]]) -> dict[str, TokenizedMatching]:
-        index_to_pos = {link_index: (j, i, k)
-                        for i, tree in enumerate(tree_levels)
-                        for j, level in enumerate(tree)
-                        for k, (_, _, _, link_index) in enumerate(level)
-                        if link_index is not None}
+        index_to_pos = {link_id: (link_id, level_id, root_id, pos_id)
+                        for root_id, tree in enumerate(tree_levels)
+                        for level_id, level in enumerate(tree)
+                        for (_, pos_id, _, link_id) in level
+                        if link_id is not None}
 
         def locate_index(link_index: int) -> TokenPosition:
             return index_to_pos[link_index]
@@ -91,6 +92,39 @@ class AtomTokenizer:
         grouped_links = self.group_indices_by_atom(links)
         return {self.atom_to_id(atom): [(locate_index(neg), locate_index(pos)) for neg, pos in atom_links.items()]
                 for atom, atom_links in grouped_links.items()}
+
+    def levels_to_trees(self, node_ids: list[list[int]]) -> list[Tree[Symbol]]:
+        levels = [[self.id_to_token[i] for i in level] for level in node_ids]
+        fringe: list[Tree[Symbol]] = [Leaf(symbol) for symbol in levels[-1]]
+        for level in reversed(levels[:-1]):
+            stack = list(reversed(fringe))
+            fringe = []
+            for symbol in level:
+                if self.symbol_arities[symbol] == 2:
+                    left = stack.pop()
+                    right = stack.pop()
+                    fringe.append(Binary(symbol, left, right))
+                else:
+                    fringe.append(Leaf(symbol))
+        return fringe
+
+    def levels_to_ptrees(self, node_ids: list[list[int]]) -> list[Tree[tuple[Symbol, tuple[int, int]]]]:
+        # same as above, but tree nodes remember their position in the decoder
+        levels = [[(l_idx, n_idx, self.id_to_token[n_id]) for n_idx, n_id in enumerate(level)]
+                  for l_idx, level in enumerate(node_ids)]
+        fringe: list[Tree[tuple[Symbol, tuple[int, int]]]]
+        fringe = [Leaf((s, (l_idx, n_idx))) for l_idx, n_idx, s in levels[-1]]
+        for level in reversed(levels[:-1]):
+            stack = list(reversed(fringe))
+            fringe = []
+            for (l_idx, n_idx, s) in level:
+                if self.symbol_arities[s] == 2:
+                    left = stack.pop()
+                    right = stack.pop()
+                    fringe.append(Binary((s, (l_idx, n_idx)), left, right))
+                else:
+                    fringe.append(Leaf((s, (l_idx, n_idx))))
+        return fringe
 
     @staticmethod
     def from_file(file_path: str) -> AtomTokenizer:
@@ -101,6 +135,38 @@ class AtomTokenizer:
                 id_to_sym[eval(idx)] = (symbol := Symbol(name))
                 sym_to_arity[symbol] = eval(arity)
         return AtomTokenizer(id_to_sym, sym_to_arity)
+
+
+def index_ptree(tree: Tree[tuple[Symbol, tuple[int, int]]],
+                index: int,
+                ignoring: set[str]) -> tuple[Tree[tuple[Symbol, tuple[int, int]]], int]:
+    match tree:
+        case Leaf((Symbol(name), p)):
+            if name in ignoring:
+                return Leaf((Symbol(name), p)), index
+            return Leaf((Symbol(name, index), p)), index + 1
+        case Unary(node, content):
+            content, index = index_ptree(content, index, ignoring)
+            return Unary(node, content), index
+        case Binary(node, left, right):
+            left, index = index_ptree(left, index, ignoring)
+            right, index = index_ptree(right, index, ignoring)
+            return Binary(node, left, right), index
+        case _:
+            raise ValueError(f'Unknown tree type: {tree}')
+
+
+def index_ptrees(*trees: Tree[tuple[Symbol, tuple[int, int]]],
+                 ignoring: set[str]) -> list[Tree[tuple[Symbol, tuple[int, int]]]]:
+    ret, index = [], 0
+    for tree in trees:
+        indexed, index = index_ptree(tree, index, ignoring)
+        ret.append(indexed)
+    return ret
+
+
+def group_trees(trees: list[Tree[Node]], splitpoints: list[int]) -> list[list[Tree[Node]]]:
+    return [trees[start:end] for start, end in zip([0] + splitpoints, splitpoints)]
 
 
 def encode_sample(
@@ -116,10 +182,10 @@ def encode_sample(
     return encoder_inputs, decoder_inputs, parser_inputs
 
 
-def vectorize(data: tuple[list[Sample], ...],
-              atom_map_path: str,
-              bert_name: str,
-              bert_type: str) -> tuple[list[TokenizedSample], ...]:
+def tokenize_dataset(data: tuple[list[Sample], ...],
+                     atom_map_path: str,
+                     bert_name: str,
+                     bert_type: str) -> tuple[list[TokenizedSample], ...]:
     atokenizer = AtomTokenizer.from_file(atom_map_path)
     tokenizer = Tokenizer(bert_name, bert_type)
     return tuple([encode_sample(s, atokenizer, tokenizer) for s in subset] for subset in data)

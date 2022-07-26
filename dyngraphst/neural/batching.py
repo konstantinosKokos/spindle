@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import pdb
+
 import torch
 from typing import Iterator, Callable
 from torch import Tensor
 from itertools import product, zip_longest, chain, groupby
-from ..data.vectorization import TokenizedTrees, TokenizedMatchings, TokenizedMatching, TokenizedSample
+from ..data.tokenization import (Tree, Binary, Leaf, Symbol,
+                                 TokenizedTrees, TokenizedMatchings, TokenizedSample)
 from dataclasses import dataclass
 
 from torch.nn.utils.rnn import pad_sequence as _pad_sequence
@@ -83,28 +86,108 @@ def batchify_decoder_inputs(trees: list[list[TokenizedTrees]]) -> DecoderBatch:
     return DecoderBatch(edge_index, token_ids, positions)
 
 
+# row, atom_id, negative_link_indices, positive_link_indices
+BackPointer = list[tuple[int, str | int, list[int], list[int]]]
+
+
 @dataclass
 class ParserBatch:
-    tensors: list[Tensor]   # each tensor is (batch_size, num_candidates, 2, 3)
+    indices: list[Tensor]            # each element is a (b, n, 2, 2) tensor
+    backpointers: list[BackPointer]  # a bp for each indexing tensor (mostly useless for training)
 
     def to(self, device: torch.device) -> ParserBatch:
-        return ParserBatch([tensor.to(device) for tensor in self.tensors])
+        return ParserBatch([tensor.to(device) for tensor in self.indices], self.backpointers)
 
 
 def batchify_parser_inputs(matchings_list: list[TokenizedMatchings],
-                           sent_lengths: list[int]) -> ParserBatch:
-    def go() -> Iterator[TokenizedMatching]:
-        def offset(m: TokenizedMatching) -> TokenizedMatching:
-            return [((l_level, l_tree + csum, l_position), (r_level, r_tree + csum, r_position))
-                    for (l_level, l_tree, l_position), (r_level, r_tree, r_position) in m]
+                           decoder_batch: DecoderBatch,
+                           sent_lens: list[int]) -> ParserBatch:
+    def go() -> Iterator[tuple[tuple[int, str | int, list[int], list[int]],
+                               list[tuple[tuple[int, int], tuple[int, int]]]]]:
+        def batchify_token_pos(_: int, level: int, root: int, pos_id: int) -> tuple[int, int]:
+            level_filter = decoder_batch.edge_index[level][0] == root + csum
+            pos_filter = decoder_batch.pos_ids[level] == pos_id
+            index = (level_filter & pos_filter).nonzero()[0].item()
+            return level, index
+
+        def gather_link_ids(token_pos: list[tuple[tuple[int, int, int, int], tuple[int, int, int, int]]]) \
+                -> tuple[list[int], list[int]]:
+            negs, pos = zip(*token_pos)
+            return [link_idx for link_idx, _, _, _, in negs], [link_idx for link_idx, _, _, _, in pos]
 
         csum = 0
-        for _, (matchings, sl) in enumerate(zip(matchings_list, sent_lengths)):
-            for _, matching in matchings.items():
-                yield offset(matching)
-            csum += sl
-    return ParserBatch([torch.tensor(list(ms))
-                        for num_candidates, ms in groupby(sorted(go(), key=len), key=len) if num_candidates > 1])
+        for s_id, (matchings, sent_len) in enumerate(zip(matchings_list, sent_lens)):
+            for atom_id, matching in matchings.items():
+                b_pos = [(batchify_token_pos(*neg), batchify_token_pos(*pos)) for neg, pos in matching]
+                yield (s_id, atom_id, *gather_link_ids(matching)), b_pos
+            csum += sent_len
+
+    arranged = groupby(sorted(go(), key=lambda x: len(x[-1])), key=lambda x: len(x[-1]))
+    backpointers, indices = zip(*[tuple(zip(*ms)) for nc, ms in arranged])
+    return ParserBatch([torch.tensor(group) for group in indices],
+                       backpointers)
+
+
+_Matrix = list[tuple[str, tuple[list[tuple[int, int, int]], list[tuple[int, int, int]]]]]
+
+
+def ptrees_to_candidates(ptrees: list[Tree[tuple[Symbol, tuple[int, int]]]]) -> ParserBatch | None:
+    def go_tree(_ptree: Tree[tuple[Symbol, tuple[int, int]]],
+                polarity: bool) -> Iterator[tuple[str, int, int, int | None, bool]]:
+        match _ptree:
+            case Binary(_, left, right):
+                yield from go_tree(left, not polarity)
+                yield from go_tree(right, polarity)
+            case Leaf((sym, (level_idx, n_idx))):
+                yield sym.name, sym.index, level_idx, n_idx, polarity
+            case _:
+                raise ValueError
+
+    def go_seq() -> Iterator[tuple[str, int, int, int | None, bool]]:
+        (conclusion, *assignments) = ptrees
+        for ptree in assignments:
+            yield from go_tree(ptree, True)
+        yield from go_tree(conclusion, False)
+
+    def nc(t: tuple[str, tuple[list[tuple, tuple]]]) -> int:
+        _, (ns, _) = t
+        return len(ns)
+
+    def split_by_polarity(*items: tuple[str, int, int, int, bool]) \
+            -> tuple[list[tuple[str, int, int, int]], list[tuple[str, int, int, int]]]:
+        return [item[1:4] for item in items if not item[4]], [item[1:4] for item in items if item[4]]
+
+    def matrices_to_indices_and_bps(ms: list[_Matrix]) -> tuple[Tensor, BackPointer]:
+        def matrix_to_tensor(ns: list[tuple[int, int, int]], ps: list[tuple[int, int, int]]) -> Tensor:
+            pairs = list(zip(ns, ps))
+            return torch.tensor(pairs)[..., 1:]
+
+        def matrix_to_bp(ns: list[tuple[int, int, int]], ps: list[tuple[int, int, int]]):
+            return [n[0] for n in ns], [p[0] for p in ps]
+
+        names, rest = zip(*ms)
+        tensor = torch.stack([matrix_to_tensor(*x) for x in rest])
+        link_indices = [matrix_to_bp(*x) for x in rest]
+        bp = [(0, name, nlinks, plinks) for name, (nlinks, plinks) in zip(names, link_indices)]
+        return tensor, bp
+
+    # ignore leaves with no symbol index
+    seq = filter(lambda x: x[1] is not None, go_seq())
+    grouped = {atom: split_by_polarity(*group)
+               for atom, group in groupby(sorted(seq, key=lambda item: item[0]), key=lambda item: item[0])}
+    if all(len(neg) == len(pos) for neg, pos in grouped.values()):
+        matrix_groups: list[list[tuple[str, tuple[list[tuple[int, int, int]], list[tuple[int, int, int]]]]]]
+        matrix_groups = [list(gs) for _, gs in groupby(sorted(grouped.items(), key=nc), key=nc)]
+
+        indices: list[Tensor] = []
+        backpointers: list[BackPointer] = []
+        matrices: list[_Matrix]
+        for matrices in matrix_groups:
+            indexing_tensor, backpointer = matrices_to_indices_and_bps(matrices)
+            indices.append(indexing_tensor)
+            backpointers.append(backpointer)
+        return ParserBatch(indices, backpointers)
+    return None
 
 
 BatchInput = list[TokenizedSample]
@@ -134,7 +217,7 @@ def collate_fn(batch_items: BatchInput,
                                                        cls_dist)
     decoder_batch = batchify_decoder_inputs(tokenized_trees)
     if tokenized_matchings is not None:
-        parser_batch = batchify_parser_inputs(tokenized_matchings, sent_lens)
+        parser_batch = batchify_parser_inputs(tokenized_matchings, decoder_batch, sent_lens)
     else:
         parser_batch = None
     return Batch(encoder_batch, decoder_batch, parser_batch).to(device)
