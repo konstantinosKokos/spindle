@@ -1,32 +1,27 @@
 from LassyExtraction.extraction import Atoms
-from LassyExtraction.frontend import Sample as AethelSample, ProofBank, LexicalPhrase, LexicalItem, Type
-from LassyExtraction.mill.nets import (FormulaTree as _FormulaTree,
-                                       UnaryFT as _UnaryFT,
-                                       BinaryFT as _BinaryFT,
-                                       LeafFT as _LeafFT,
-                                       proof_to_links,
-                                       links_to_proof,
-                                       tree_to_type as ft_to_type,
+from LassyExtraction.frontend import Sample as AethelSample, ProofBank, LexicalPhrase, LexicalItem, Type, Proof
+from LassyExtraction.mill.nets import (FormulaTree, UnaryFT, BinaryFT, LeafFT,
+                                       proof_to_links, links_to_proof, tree_to_type as ft_to_type,
                                        AxiomLinks)
 
 from dyngraphst.data.tree import Tree, Leaf, Unary, Binary, Symbol
 from dyngraphst.data.processing import Sample, make_symbol_map, extract_unique_symbols, pad_mwus
 
 
-def ft_to_tree(formula_tree: _FormulaTree) -> Tree[Symbol]:
-    def convert(ft: _FormulaTree) -> Tree[Symbol]:
+def ft_to_tree(formula_tree: FormulaTree) -> Tree[Symbol]:
+    def convert(ft: FormulaTree) -> Tree[Symbol]:
         match ft:
-            case _LeafFT(atom, index, _):
+            case LeafFT(atom, index, _):
                 return Leaf(Symbol(atom, index))
-            case _BinaryFT(left, right, _):
+            case BinaryFT(left, right, _):
                 return Binary(Symbol('->'), convert(left), convert(right))
-            case _UnaryFT('diamond', _UnaryFT('box', content, inner, _), outer, _):
+            case UnaryFT('diamond', UnaryFT('box', content, inner, _), outer, _):
                 if inner == outer:
                     return Unary(Symbol('!' + outer), convert(content))
-                return Unary(Symbol('◇' + outer), convert(_UnaryFT('box', content, inner)))
-            case _UnaryFT('diamond', content, decoration, _):
+                return Unary(Symbol('◇' + outer), convert(UnaryFT('box', content, inner)))
+            case UnaryFT('diamond', content, decoration, _):
                 return Unary(Symbol('◇' + decoration), convert(content))
-            case _UnaryFT('box', content, decoration, _):
+            case UnaryFT('box', content, decoration, _):
                 return Unary(Symbol('□' + decoration), convert(content))
             case _:
                 raise ValueError
@@ -62,7 +57,7 @@ def ft_to_tree(formula_tree: _FormulaTree) -> Tree[Symbol]:
     return binarize(merge_adjacent_unaries(convert(formula_tree)))
 
 
-def tree_to_ft(tree: Tree[Symbol], polarity: bool) -> _FormulaTree:
+def tree_to_ft(tree: Tree[Symbol], polarity: bool) -> FormulaTree:
     def debinarize(t: Tree[Symbol]) -> Tree[Symbol]:
         def nested_unary(_tree: Tree[Symbol], modalities: list[str]) -> Tree[Symbol]:
             match modalities:
@@ -98,24 +93,24 @@ def tree_to_ft(tree: Tree[Symbol], polarity: bool) -> _FormulaTree:
             case _:
                 return t
 
-    def convert(t: Tree[Symbol], p: bool) -> _FormulaTree:
+    def convert(t: Tree[Symbol], p: bool) -> FormulaTree:
         match t:
             case Leaf(symbol):
-                return _LeafFT(symbol.name, symbol.index, p)
+                return LeafFT(symbol.name, symbol.index, p)
             case Unary(Symbol(s), content):
                 match tuple(s):
                     case ('◇', *ds):
-                        return _UnaryFT('diamond', convert(content, p), ''.join(ds))
+                        return UnaryFT('diamond', convert(content, p), ''.join(ds))
                     case ('□', *ds):
-                        return _UnaryFT('box', convert(content, p), ''.join(ds))
+                        return UnaryFT('box', convert(content, p), ''.join(ds))
                     case ('!', *ds):
-                        return _UnaryFT('diamond',
-                                        _UnaryFT('box', convert(content, p), ''.join(ds)),
+                        return UnaryFT('diamond',
+                                       UnaryFT('box', convert(content, p), ''.join(ds)),
                                         ''.join(ds))
                     case _:
                         raise ValueError
             case Binary(_, left, right):
-                return _BinaryFT(convert(left, not p), convert(right, p))
+                return BinaryFT(convert(left, not p), convert(right, p))
             case _:
                 raise ValueError(f'Unknown tree type: {t}')
 
@@ -127,7 +122,7 @@ def tree_to_type(tree: Tree) -> Type:
 
 
 def from_aethel(sample: AethelSample) -> Sample:
-    def leaf_to_symbol(leaf: _LeafFT) -> Symbol:
+    def leaf_to_symbol(leaf: LeafFT) -> Symbol:
         return Symbol(leaf.atom, leaf.index)
 
     links, participating_trees, conclusion = proof_to_links(sample.proof)
