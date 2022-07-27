@@ -1,11 +1,11 @@
 import torch
 from torch import Tensor
 
-from dyngraphst.neural.model import Parser
-from dyngraphst.data.tokenization import (Tokenizer, AtomTokenizer, Leaf, Symbol, Tree,
+from dyngraphpn.neural.model import Parser
+from dyngraphpn.data.tokenization import (Tokenizer, AtomTokenizer, Leaf, Symbol, Tree,
                                           group_trees, index_ptrees)
-from dyngraphst.data.processing import merge_on_word_starts, get_word_starts
-from dyngraphst.neural.batching import batchify_encoder_inputs, ptrees_to_candidates, BackPointer
+from dyngraphpn.data.processing import merge_on_word_starts, get_word_starts
+from dyngraphpn.neural.batching import batchify_encoder_inputs, ptrees_to_candidates, BackPointer
 from interface.aethel import (tree_to_ft, links_to_proof, ft_to_type,
                               LexicalPhrase, LexicalItem, Proof,
                               AxiomLinks, FormulaTree, Atoms)

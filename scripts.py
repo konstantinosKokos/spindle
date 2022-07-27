@@ -1,5 +1,5 @@
 import torch
-from dyngraphst.neural.train import train, evaluate
+from dyngraphpn.neural.train import train, evaluate
 
 
 NUM_EPOCHS = 25
