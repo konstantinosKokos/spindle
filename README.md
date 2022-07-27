@@ -1,152 +1,102 @@
-# Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions
+# Geometry-Aware Supertagging meets Neural Proof Nets
 
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/geometry-aware-supertagging-with/ccg-supertagging-on-ccgbank)](https://paperswithcode.com/sota/ccg-supertagging-on-ccgbank?p=geometry-aware-supertagging-with)
+This repository combines
+* https://github.com/konstantinosKokos/dynamic-graph-supertagging/
+and
+* https://github.com/konstantinosKokos/neural-proof-nets/
 
-This is our code for the paper [Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions](https://arxiv.org/abs/2203.12235).
+into an open-source for parsing Dutch into syntactic proofs of multiplicative intuitionuistic linear logic with 
+dependency modalities, and the equivalent semantic λ-terms.
+
+---
+
+## How-To
+Pending better packaging, installation involves the following steps:
+
+> ### 1. Create a local clone of this repository
+>   ```
+>   git clone git@github.com:konstantinosKokos/dynamic-proof-nets.git
+>  ``` 
+> ### 2. Create a local clone of lassy-tlg-extraction
+>   ```
+>   git clone git@github.com:konstantinosKokos/lassy-tlg-extraction.git
+>   ```
+> ### 3. Link the two 
+>   Walk into the `dynamic-proof-nets` directory and make a symlink to the LassyExtraction module.
+>   ```
+>   cd dynamic-proof-nets
+>   ln -s ../lassy-tlg-extraction/LassyExtraction ./LassyExtraction
+>   ```
+> ### 4. Prepare your environment
+>   * #### Setup and source a **fresh** python 3.10 environment, for instance using conda. 
+>     ```
+>      conda create -n [VENV_NAME] python=3.10
+>      conda activate [VENV_NAME]
+>      ```
+>   * #### Install PyTorch 1.11 and opt_einsum
+>     ```
+>     conda install pytorch==1.11.0 -c pytorch
+>     conda install opt_einsum -c conda-forge
+>     ```
+>   * #### Install Transformers
+>     ```
+>     pip install transformers
+>     ```
+>   * #### Finally, install PyTorch Geometric.
+>   If you're lucky, this should work:
+>     ```
+>     conda install pyg -c pyg
+>     ```
+>     But chances are it won't.
+>     If it doesn't, refer to the [installation instructions](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html).
+>     The usual way out would look something like:
+>     ```
+>     pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.11.0+cu113.html
+>     ```
+>     Where you'd need to substitute for your own version of cuda.
+> ### 5. Download pretrained model weights
+>   These can be found [here](). Extract and place them in the `data` directory.
+
+You're good to go! Check out `demo.ipynb` for a hands-on intro.
+
+---
 
 ## Citing
-While unpublished, you can cite the arxiv preprint:
-```latex
-@misc{https://doi.org/10.48550/arxiv.2203.12235,
-  doi = {10.48550/ARXIV.2203.12235},  
-  url = {https://arxiv.org/abs/2203.12235},
-  author = {Kogkalidis, Konstantinos and Moortgat, Michael},
-  keywords = {Computation and Language (cs.CL), Machine Learning (cs.LG), FOS: Computer and information sciences, FOS: Computer and information sciences},
-  title = {Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions},
-  publisher = {arXiv},
-  year = {2022},
-  copyright = {Creative Commons Attribution 4.0 International}
-}
+Please cite the following two papers if you use (parts of) this repository for your own work.
 
-```
+> ### Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions
+> ```latex
+> @misc{https://doi.org/10.48550/arxiv.2203.12235,
+>   doi = {10.48550/ARXIV.2203.12235},  
+>  url = {https://arxiv.org/abs/2203.12235},
+>  author = {Kogkalidis, Konstantinos and Moortgat, Michael},
+>  keywords = {Computation and Language (cs.CL), Machine Learning (cs.LG), FOS: Computer and information sciences, FOS: Computer and information sciences},
+>  title = {Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions},
+>  publisher = {arXiv},
+>  year = {2022},
+>  copyright = {Creative Commons Attribution 4.0 International}
+> }
+> ```
+> ### Neural Proof Nets
+> ```latex
+> @inproceedings{kogkalidis-etal-2020-neural,
+>    title = "Neural Proof Nets",
+>    author = "Kogkalidis, Konstantinos  and
+>      Moortgat, Michael  and
+>      Moot, Richard",
+>    booktitle = "Proceedings of the 24th Conference on Computational Natural Language Learning",
+>    month = nov,
+>    year = "2020",
+>    address = "Online",
+>    publisher = "Association for Computational Linguistics",
+>    url = "https://aclanthology.org/2020.conll-1.3",
+>    doi = "10.18653/v1/2020.conll-1.3",
+>    pages = "26--40",
+>    abstract = "Linear logic and the linear λ-calculus have a long standing tradition in the study of natural language form and meaning. Among the proof calculi of linear logic, proof nets are of particular interest, offering an attractive geometric representation of derivations that is unburdened by the bureaucratic complications of conventional prooftheoretic formats. Building on recent advances in set-theoretic learning, we propose a neural variant of proof nets based on Sinkhorn networks, which allows us to translate parsing as the problem of extracting syntactic primitives and permuting them into alignment. Our methodology induces a batch-efficient, end-to-end differentiable architecture that actualizes a formally grounded yet highly efficient neuro-symbolic parser. We test our approach on {\AE}Thel, a dataset of type-logical derivations for written Dutch, where it manages to correctly transcribe raw text sentences into proofs and terms of the linear λ-calculus with an accuracy of as high as 70{\%}.",
+> }
+> ```
 
-## About
-The model presents a new approach to constructive supertagging, based on an explicit graph representation that accounts
-for both the _intra_-tree interactions between a single supertag and the _inter_-tree interactions between (partially decoded) supertag
-sequences.
-To account for the disparity between the various modalities in the graph 
-(i.e. sentential word order, subword contextualized vectors, tree-sequence order and intra-tree edges) we adopt a 
-heterogeneous formulation.
-Decoding is performed in parallel over trees, each temporal step associated with an increased tree depth.
-Statefulness is achieved by representing each partially decoded tree with a single state-tracking vector, which is 
-updated twice at each step: once with feedback from its own tree's last decoded fringe, and once with feedback
-from surrounding trees.
-The result is a highly parallel yet partially auto-regressive architecture with input-scaling memory complexity and 
-near-constant decoding time that achieves new state-of-the-art scores on four datasets while retaining the ability to 
-predict rare supertags reliably.
-
-## Results
-Averages of 6 repetitions compared to recent results on the respective datasets (crawled 23/03/2022).
-
-<table>
-    <tr>
-        <td><center><b>Model</b></center></td>
-        <td><center><b>Accuracy</b></center></td>
-        <td><center><b>Frequent</b> (100+)</center></td>
-        <td><center><b>Uncommon</b> (10-99)</center></td>
-        <td><center><b>Rare</b> (1-9)</center></td>
-        <td><center><b>OOV</b></center></td>
-    </tr>
-    <tr>
-        <td colspan="6"></td>
-    </tr>
-    <tr>
-        <td colspan="6"><center><b><i>CCGbank</i></b></center></td>
-    </tr>
-    <tr>
-        <td><a href="https://github.com/cuhksz-nlp/NeST-CCG">Attentive Convolutions</a> </td>
-        <td>96.25</td>
-        <td>96.64</td>
-        <td>71.04</td>
-        <td>n/a</td>
-        <td>n/a</td>
-    </tr>
-    <tr>
-        <td><i>Ours</i></td>
-        <td><b>96.29</b></td>
-        <td>96.61</td>
-        <td>72.06</td>
-        <td>34.45</td>
-        <td>4.55</td>
-    </tr>
-    <tr>
-        <td colspan="6"></td>
-    </tr>
-    <tr>
-        <td colspan="6"><center><b><i>CCGrebank</i></b></center></td>
-    </tr>
-    <tr>
-        <td><a href="https://github.com/jakpra/treeconstructive-supertagging">Recursive Tree Addressing</a></td>
-        <td>94.70</td>
-        <td>95.11</td>
-        <td>68.86</td>
-        <td>36.76</td>
-        <td>4.94</td>
-    </tr>
-    <tr>
-        <td><i>Ours</i></td>
-        <td><b>95.07</b></td>
-        <td>95.45</td>
-        <td>71.06</td>
-        <td>34.45</td>
-        <td>4.55</td>
-    </tr>
-    <tr>
-        <td colspan="6"></td>
-    </tr>
-    <tr>
-        <td colspan="6"><center><b><i>French TLGbank</i></b></center></td>
-    </tr>
-    <tr>
-        <td><a href="https://richardmoot.github.io/Slides/WoLLIC2019.pdf">ELMO & LSTM</a></td>
-        <td>93.20</td>
-        <td>95.10</td>
-        <td>75.19</td>
-        <td>25.85</td>
-        <td>n/a</td>
-    </tr>
-    <tr>
-        <td><i>Ours</i></td>
-        <td><b>95.92</b></td>
-        <td>96.40</td>
-        <td>81.48</td>
-        <td>55.37</td>
-        <td>7.25</td>
-    </tr>
-    <tr>
-        <td colspan="6"></td>
-    </tr>
-    <tr>
-        <td colspan="6"><center><b><i>Æthel</i></b></center></td>
-    </tr>
-    <tr>
-        <td><a href="https://github.com/konstantinosKokos/neural-proof-nets">Symbol-Sequential Transformer</a></td>
-        <td>83.67</td>
-        <td>84.55</td>
-        <td>64.70</td>
-        <td>50.58</td>
-        <td>24.55</td>
-    </tr>
-    <tr>
-        <td><i>Ours</i></td>
-        <td><b>93.67</b></td>
-        <td>94.83</td>
-        <td>73.45</td>
-        <td>53.83</td>
-        <td>15.79</td>
-</table>
-
-## Project Structure
-`dyngraphst.neural` contains the model architecture , and `dyngraphst.data` contains the data preprocessing code; see 
-the READMEs of the respective directories for more details.
-While anticipating the next stable release of [PyTorchGeometric](https://pytorch-geometric.readthedocs.io/en/latest/),
-the code will require two distinct python environments: python3.9 with `pytorch 1.10.2` and 
-`torch_geometric 2.0.3` for training/inference, and python3.10 for data processing and evaluation.
-The two will be coallesced at a later stage.
-
-## How-to
-Detailed instructions coming soon. 
+---
 
 ## Contact & Support
-If you have any questions or comments or would like a grammar/language specific pretrained model,
-feel free to [get in touch](k.kogkalidis@uu.nl).
+If you have any questions or comments or encounter any difficulties, please feel free to [get in touch](k.kogkalidis@uu.nl).

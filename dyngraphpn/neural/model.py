@@ -196,7 +196,7 @@ class Parser(Module):
         return positional_maps * self.embedder.embed(node_ids)
 
     def link(self, reprs: list[Tensor], indices: list[Tensor], training: bool = True) -> list[Tensor]:
-        return self.linker(reprs, indices, num_iters=3, train=training)
+        return self.linker(reprs, indices, num_iters=3, training=training)
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)
