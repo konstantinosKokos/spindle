@@ -14,9 +14,9 @@ class Linker(Module):
     def forward(self, reprs: list[Tensor],
                 indices: list[Tensor],
                 num_iters: int,
-                train: bool = True,
+                training: bool = True,
                 tau: int = 1) -> list[Tensor]:
-        return self.gather_and_link(reprs, indices, num_iters, train, tau)
+        return self.gather_and_link(reprs, indices, num_iters, training, tau)
 
     def compute_link_strengths(self, negative: Tensor, positive: Tensor) -> Tensor:
         return contract('bix,bjy,xy->bij', negative, positive, self.weight)  # type: ignore
@@ -25,9 +25,9 @@ class Linker(Module):
                         reprs: list[Tensor],
                         indices: list[Tensor],
                         num_iters: int,
-                        train: bool = True,
+                        training: bool = True,
                         tau: int = 1) -> list[Tensor]:
-        negatives, positives = gather_many_leaf_reprs(reprs, indices, train)
+        negatives, positives = gather_many_leaf_reprs(reprs, indices, training)
         scores = [self.compute_link_strengths(negative, positive) for negative, positive in zip(negatives, positives)]
         return [sinkhorn(score, tau, num_iters) for score in scores]
 
