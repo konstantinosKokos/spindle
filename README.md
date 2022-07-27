@@ -43,17 +43,17 @@ Pending better packaging, installation involves the following steps:
 >     pip install transformers
 >     ```
 >   * #### Finally, install PyTorch Geometric.
->   If you're lucky, this should work:
->     ```
+>    If you're lucky, this should work:
+>    ```
 >     conda install pyg -c pyg
->     ```
->     But chances are it won't.
->     If it doesn't, refer to the [installation instructions](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html).
->     The usual way out would look something like:
->     ```
+>    ```
+>    Chances are it won't.
+>    If it doesn't, refer to the [installation instructions](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html).
+>    The usual way out would look something like:
+>    ```
 >     pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.11.0+cu113.html
->     ```
->     Where you'd need to substitute for your own version of cuda.
+>    ```
+>    Where you'd need to substitute for your own system's cuda version.
 > ### 5. Download pretrained model weights
 >   These can be found [here](). Extract and place them in the `data` directory.
 
