@@ -1,3 +1,5 @@
+import pdb
+
 import torch
 from torch import Tensor
 
@@ -65,6 +67,7 @@ class InferenceWrapper:
             if (candidates := ptrees_to_candidates(ptrees)) is not None:
                 grouped_matches = self.parser.link(decoder_reprs, candidates.indices, training=False)
                 links = matches_to_links(grouped_matches, candidates.backpointers)
+                pdb.set_trace()
                 proof = attempt_traversal(links, f_assignments, f_conclusion)
             else:
                 proof = ValueError('Invariance check failed.')
