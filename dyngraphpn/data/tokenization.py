@@ -2,7 +2,8 @@ from __future__ import annotations
 from .processing import Sample, Symbol, whitespace_punct
 from .tree import Tree, Leaf, Unary, Binary, Node
 
-from itertools import groupby
+import pickle
+
 from transformers import BertTokenizer, RobertaTokenizer, CamembertTokenizer, FlaubertTokenizer
 
 
@@ -19,6 +20,7 @@ TokenPosition = tuple[int, int, int, int]                       # link index, le
 TokenizedMatching = list[tuple[TokenPosition, TokenPosition]]   # list of (positive, negative) pairs
 TokenizedMatchings = dict[int, [TokenizedMatching]]             # list of matchings, one per atom
 TokenizedSample = tuple[TokenizedSentence, TokenizedTrees, TokenizedMatchings | None]
+TokenizedSamples = list[TokenizedSample]
 
 
 class Tokenizer:
@@ -185,7 +187,12 @@ def encode_sample(
 def tokenize_dataset(data: tuple[list[Sample], ...],
                      atom_map_path: str,
                      bert_name: str,
-                     bert_type: str) -> tuple[list[TokenizedSample], ...]:
+                     bert_type: str) -> tuple[TokenizedSamples, ...]:
     atokenizer = AtomTokenizer.from_file(atom_map_path)
     tokenizer = Tokenizer(bert_name, bert_type)
     return tuple([encode_sample(s, atokenizer, tokenizer) for s in subset] for subset in data)
+
+
+def load_data(path: str) -> tuple[TokenizedSamples, TokenizedSamples, TokenizedSamples]:
+    with open(path, "rb") as f:
+        return pickle.load(f)

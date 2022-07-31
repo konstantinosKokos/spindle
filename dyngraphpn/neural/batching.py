@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import pdb
-
 import torch
-from typing import Iterator, Callable
 from torch import Tensor
-from itertools import product, zip_longest, chain, groupby
-from ..data.tokenization import (Tree, Binary, Leaf, Symbol,
-                                 TokenizedTrees, TokenizedMatchings, TokenizedSample)
-from dataclasses import dataclass
-
 from torch.nn.utils.rnn import pad_sequence as _pad_sequence
+from torch.utils.data import DataLoader
+
+from typing import Iterator, Callable
+from dataclasses import dataclass
+from itertools import product, zip_longest, chain, groupby
+
+from ..data.tokenization import (Tree, Binary, Leaf, Symbol,
+                                 TokenizedTrees, TokenizedMatchings, TokenizedSample, TokenizedSamples)
 
 
 def pad_sequence(sequence: list[Tensor], padding_value: int = 0) -> Tensor:
@@ -123,7 +123,7 @@ def batchify_parser_inputs(matchings_list: list[TokenizedMatchings],
             csum += sent_len
 
     arranged = groupby(sorted(go(), key=lambda x: len(x[-1])), key=lambda x: len(x[-1]))
-    backpointers, indices = zip(*[tuple(zip(*ms)) for nc, ms in arranged])
+    backpointers, indices = zip(*[tuple(zip(*ms)) for nc, ms in arranged if nc > 1])
     return ParserBatch([torch.tensor(group) for group in indices],
                        backpointers)
 
@@ -227,3 +227,19 @@ def make_collator(device: torch.device, pad_token_id: int, cls_dist: int) -> Cal
     def wrapped(batch: BatchInput) -> Batch:
         return collate_fn(batch, device, pad_token_id, cls_dist)
     return wrapped
+
+
+def make_loaders(data: tuple[TokenizedSamples, TokenizedSamples, TokenizedSamples],
+                 device: torch.device,
+                 pad_token_id: int,
+                 max_seq_len: int,
+                 batch_size_train: int = 16,
+                 batch_size_dev: int = 64,
+                 cls_dist: int = -999) -> tuple[DataLoader, DataLoader, DataLoader]:
+    train, dev, test = [[sample for sample in subset
+                         if len(sample[0][0]) <= max_seq_len]
+                        for subset in data]
+    collate_fn = make_collator(device, pad_token_id=pad_token_id, cls_dist=cls_dist)
+    return (DataLoader(train, batch_size_train, shuffle=True, collate_fn=collate_fn),
+            DataLoader(sorted(dev, key=lambda x: len(x[0][0])), batch_size_dev, shuffle=False, collate_fn=collate_fn),
+            DataLoader(sorted(test, key=lambda x: len(x[0][0])), batch_size_dev, shuffle=False, collate_fn=collate_fn))
