@@ -4,7 +4,7 @@ import torch
 
 from dyngraphpn.data.tokenization import AtomTokenizer, load_data, group_trees
 from dyngraphpn.data.processing import merge_preds_on_true, get_word_starts
-from dyngraphpn.neural.batching import make_loaders
+from dyngraphpn.neural.batching import make_loader
 from dyngraphpn.neural.model import Parser
 
 from operator import eq
@@ -44,9 +44,8 @@ def evaluate(model_path: str,
 
     model.load(model_path, map_location=device)
     model.eval()
-    data = load_data(data_path)
-    dls = make_loaders(data, device, pad_token_id=pad_token_id, max_seq_len=max_seq_len, batch_size_dev=batch_size)
-    dl = dls[2 if test_set else 1]
+    data = load_data(data_path)[2 if test_set else 1]
+    dl = make_loader(data, device, pad_token_id=pad_token_id, max_seq_len=max_seq_len, batch_size=batch_size, sort=True)
     model.path_encoder.precompute(2 ** max_depth + 1)
     atokenizer = AtomTokenizer.from_file(atom_map_path)
     start = time()

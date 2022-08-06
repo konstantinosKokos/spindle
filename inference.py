@@ -11,9 +11,12 @@ from dyngraphpn.neural.batching import batchify_encoder_inputs, ptrees_to_candid
 from interface.aethel import (tree_to_ft, links_to_proof, ft_to_type,
                               LexicalPhrase, LexicalItem, Proof,
                               AxiomLinks, FormulaTree, Atoms)
+
 from dataclasses import dataclass
 from transformers import BertConfig
 from itertools import accumulate
+
+from scipy.optimize import linear_sum_assignment
 
 
 @dataclass
@@ -21,12 +24,16 @@ class Analysis:
     lexical_phrases:   tuple[LexicalPhrase, ...]
     proof:             Proof | Exception
 
+    @property
+    def sentence(self):
+        return ' '.join(phrase.string for phrase in self.lexical_phrases)
+
 
 class InferenceWrapper:
     def __init__(self,
                  weight_path: str,
-                 atom_map_path: str,
-                 config_path: str | None = None,
+                 atom_map_path: str = './data/atom_map.tsv',
+                 config_path: str | None = './data/bert_config.json',
                  device: torch.device = 'cuda'):
         encoder = 'GroNLP/bert-base-dutch-cased' if config_path is None else BertConfig.from_json_file(config_path)
         self.parser = Parser(num_classes=80,
@@ -67,7 +74,6 @@ class InferenceWrapper:
             if (candidates := ptrees_to_candidates(ptrees)) is not None:
                 grouped_matches = self.parser.link(decoder_reprs, candidates.indices, training=False)
                 links = matches_to_links(grouped_matches, candidates.backpointers)
-                pdb.set_trace()
                 proof = attempt_traversal(links, f_assignments, f_conclusion)
             else:
                 proof = ValueError('Invariance check failed.')
@@ -90,10 +96,11 @@ def matches_to_links(grouped_matches: list[Tensor], backpointers: list[BackPoint
     def sign_to_ft(s: str, idx: int, pol: bool) -> FormulaTree: return tree_to_ft(Leaf(Symbol(s, idx)), pol)
 
     for match_tensor, backpointer_group in zip(grouped_matches, backpointers):
-        matches = match_tensor.argmax(dim=-1).tolist()
+        matches = [linear_sum_assignment(match, maximize=True)[1].tolist() for match in match_tensor.exp().cpu()]
         for match, (_, atom, neg_indices, pos_indices) in zip(matches, backpointer_group):
             links |= {sign_to_ft(atom, neg_indices[i], False): sign_to_ft(atom, pos_indices[match[i]], True)
                       for i in range(len(match))}
+
     return links
 
 

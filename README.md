@@ -55,9 +55,19 @@ Pending better packaging, installation involves the following steps:
 >    ```
 >    Where you'd need to substitute for your own system's cuda version.
 > ### 5. Download pretrained model weights
->   These can be found [here](). Extract and place them in the `data` directory.
+>   These can be found [here](https://surfdrive.surf.nl/files/index.php/s/tJ2Htq6NhgTmtvP).
+>  Extract and place them in the `data` directory.
 
-You're good to go! Check out `demo.ipynb` for a hands-on intro.
+You're good to go!
+Parse your first sentences as follows:
+```python
+from inference import InferenceWrapper
+inferer = InferenceWrapper(weight_path='./data/model_weights.pt',
+                           atom_map_path='./data/atom_map.tsv',
+                           config_path='./data/bert_config.json', 
+                           device='cuda')  # replace with 'cpu' if no GPU accelaration
+analyses = inferer.analyze(['Dit is een vorbeeldzin'])
+```
 
 ---
 
@@ -92,7 +102,6 @@ Please cite the following two papers if you use (parts of) this repository for y
 >    url = "https://aclanthology.org/2020.conll-1.3",
 >    doi = "10.18653/v1/2020.conll-1.3",
 >    pages = "26--40",
->    abstract = "Linear logic and the linear λ-calculus have a long standing tradition in the study of natural language form and meaning. Among the proof calculi of linear logic, proof nets are of particular interest, offering an attractive geometric representation of derivations that is unburdened by the bureaucratic complications of conventional prooftheoretic formats. Building on recent advances in set-theoretic learning, we propose a neural variant of proof nets based on Sinkhorn networks, which allows us to translate parsing as the problem of extracting syntactic primitives and permuting them into alignment. Our methodology induces a batch-efficient, end-to-end differentiable architecture that actualizes a formally grounded yet highly efficient neuro-symbolic parser. We test our approach on {\AE}Thel, a dataset of type-logical derivations for written Dutch, where it manages to correctly transcribe raw text sentences into proofs and terms of the linear λ-calculus with an accuracy of as high as 70{\%}.",
 > }
 > ```
 

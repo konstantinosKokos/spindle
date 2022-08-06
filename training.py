@@ -1,7 +1,7 @@
 import torch
 
 from dyngraphpn.data.tokenization import load_data
-from dyngraphpn.neural.batching import make_loaders
+from dyngraphpn.neural.batching import make_loader
 from dyngraphpn.neural.model import Parser
 from dyngraphpn.neural.loss import TaggingLoss, LinkingLoss
 from dyngraphpn.neural.utils import make_schedule
@@ -15,8 +15,8 @@ from time import time
 from random import random
 
 
-NUM_EPOCHS = 25
-SCHEDULE_EPOCHS = 20
+NUM_EPOCHS = 30
+SCHEDULE_EPOCHS = 30
 MAX_DIST = 6
 MAX_SEQ_LEN = 199
 NUM_SYMBOLS = 80
@@ -47,9 +47,9 @@ def train(device: torch.device = 'cuda',
             f.write(msg + '\n')
             print(msg)
 
-    data = load_data(data_path)
-    train_dl = make_loaders(data=data, device=device, max_seq_len=max_seq_len,
-                            pad_token_id=pad_token_id, batch_size_train=batch_size)[0]
+    data = load_data(data_path)[0]
+    dl = make_loader(data=data, device=device, max_seq_len=max_seq_len,
+                     pad_token_id=pad_token_id, batch_size=batch_size, sort=False)
     model = Parser(num_classes=num_classes,
                    max_dist=max_dist,
                    encoder_config_or_name=encoder_core,
@@ -66,11 +66,11 @@ def train(device: torch.device = 'cuda',
                                   model.encoder.aggregator.parameters(),
                                   model.linker.parameters(),)), []), 'lr': 1e-3}],
         weight_decay=1e-2)
-    schedule = make_schedule(warmup_steps=int(0.1 * len(train_dl) * schedule_epochs),
-                             warmdown_steps=int(0.9 * schedule_epochs * len(train_dl)),
-                             total_steps=schedule_epochs * len(train_dl),
+    schedule = make_schedule(warmup_steps=int(0.1 * len(dl) * schedule_epochs),
+                             warmdown_steps=int(0.9 * schedule_epochs * len(dl)),
+                             total_steps=schedule_epochs * len(dl),
                              max_lr=1,
-                             min_lr=1e-3)
+                             min_lr=1e-4)
 
     if init_epoch != 0:
         model.load_state_dict(torch.load(f'{storage_dir}/model_{init_epoch - 1}.pt'))
@@ -83,7 +83,7 @@ def train(device: torch.device = 'cuda',
 
     scheduler = LambdaLR(opt,
                          [schedule for _ in range(len(opt.param_groups))],
-                         last_epoch=-1 if init_epoch == 0 else len(train_dl) * init_epoch)
+                         last_epoch=-1 if init_epoch == 0 else len(dl) * init_epoch)
 
     ####################################################################################################################
     # main loop
@@ -97,7 +97,7 @@ def train(device: torch.device = 'cuda',
         ################################################################################################################
         # epoch loop
         ################################################################################################################
-        for batch in train_dl:
+        for batch in dl:
             opt.zero_grad(set_to_none=True)
             token_preds, matches = model.forward_train(
                 input_ids=batch.encoder_batch.token_ids,
@@ -148,10 +148,10 @@ def train(device: torch.device = 'cuda',
         epoch_tagging_loss, epoch_linking_loss = epoch_loss
         message = f'Epoch {epoch}\n'
         message += '=' * 64 + '\n'
-        message += f'Time: {duration} ({len(train_dl)/duration} batch/sec)\n'
+        message += f'Time: {duration} ({len(dl)/duration} batch/sec)\n'
         message += f'Last LRs: {scheduler.get_last_lr()}\n'
-        message += f'Tagging Loss: {epoch_tagging_loss / len(train_dl)}\n'
-        message += f'Linking Loss: {epoch_linking_loss / len(train_dl)}\n'
+        message += f'Tagging Loss: {epoch_tagging_loss / len(dl)}\n'
+        message += f'Linking Loss: {epoch_linking_loss / len(dl)}\n'
         for depth in sorted(tagging_accuracy.keys()):
             correct, total = tagging_accuracy[depth]
             message += f'\tDepth {depth}: {correct}/{total} ({correct / total:.2f})\n'

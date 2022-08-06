@@ -40,7 +40,7 @@ class Parser(Module):
         self.path_encoder = BinaryPathEncoder.orthogonal(self.decoder_dim)
         self.embedder = InvertibleEmbedding(num_classes, decoder_dim)
         self.dist_embedding = Embedding(2 * max_dist + 2, encoder_dim // self_heads)
-        self.linker = Linker(self.decoder_dim)
+        self.linker = Linker(self.decoder_dim, dropout_rate)
 
         self.imprint = f'\
                        \tencoder_core: {encoder_config_or_name}\n\
@@ -195,8 +195,10 @@ class Parser(Module):
     def positionally_embed(self, positional_maps: Tensor, node_ids: Tensor) -> Tensor:
         return positional_maps * self.embedder.embed(node_ids)
 
-    def link(self, reprs: list[Tensor], indices: list[Tensor], training: bool = True) -> list[Tensor]:
-        return self.linker(reprs, indices, num_iters=3, training=training)
+    def link(self, reprs: list[Tensor],
+             indices: list[Tensor],
+             training: bool = True) -> list[Tensor]:
+        return self.linker(reprs, indices, training=training)
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)

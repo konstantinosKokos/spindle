@@ -2,31 +2,35 @@ import pdb
 
 import torch
 from torch import Tensor, logsumexp
-from torch.nn import Module
+from torch.nn import Module, Dropout
 from opt_einsum import contract
 
 
 class Linker(Module):
-    def __init__(self, dim: int):
+    def __init__(self, dim: int, dropout_rate: float):
         super(Linker, self).__init__()
-        self.weight = torch.nn.Parameter(torch.eye(dim, dim))
+        self.dim = dim
+        self.weight = torch.nn.Parameter(-torch.ones(dim) / dim ** 0.5)
+        self.dropout = Dropout(dropout_rate)
 
     def forward(self, reprs: list[Tensor],
                 indices: list[Tensor],
-                num_iters: int,
+                num_iters: int = 3,
                 training: bool = True,
-                tau: int = 1) -> list[Tensor]:
+                tau: float = 1.) -> list[Tensor]:
         return self.gather_and_link(reprs, indices, num_iters, training, tau)
 
     def compute_link_strengths(self, negative: Tensor, positive: Tensor) -> Tensor:
-        return contract('bix,bjy,xy->bij', negative, positive, self.weight)  # type: ignore
+        negative = self.dropout(negative)
+        positive = self.dropout(positive)
+        return contract('bix,bjx,x->bij', negative, positive, self.weight)  # type: ignore
 
     def gather_and_link(self,
                         reprs: list[Tensor],
                         indices: list[Tensor],
                         num_iters: int,
                         training: bool = True,
-                        tau: int = 1) -> list[Tensor]:
+                        tau: float = 1.) -> list[Tensor]:
         negatives, positives = gather_many_leaf_reprs(reprs, indices, training)
         scores = [self.compute_link_strengths(negative, positive) for negative, positive in zip(negatives, positives)]
         return [sinkhorn(score, tau, num_iters) for score in scores]
@@ -40,7 +44,7 @@ def step(x: Tensor) -> Tensor:
     return norm(norm(x, -1), -2)
 
 
-def sinkhorn(x: Tensor, tau: int, num_iters: int) -> Tensor:
+def sinkhorn(x: Tensor, tau: float, num_iters: int) -> Tensor:
     x = x/tau
     for _ in range(num_iters):
         x = step(x)
@@ -66,5 +70,5 @@ def gather_leaf_reprs(reprs: list[Tensor],
 
 def gather_many_leaf_reprs(reprs: list[Tensor],
                            indices: list[Tensor],
-                           train: bool) -> tuple[list[Tensor], list[Tensor]]:
-    return tuple(zip(*(g for index in indices if (g := gather_leaf_reprs(reprs, index, not train)) is not None)))
+                           training: bool) -> tuple[list[Tensor], list[Tensor]]:
+    return tuple(zip(*(g for index in indices if (g := gather_leaf_reprs(reprs, index, training)) is not None)))

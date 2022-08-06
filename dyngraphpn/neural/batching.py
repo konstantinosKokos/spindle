@@ -229,17 +229,15 @@ def make_collator(device: torch.device, pad_token_id: int, cls_dist: int) -> Cal
     return wrapped
 
 
-def make_loaders(data: tuple[TokenizedSamples, TokenizedSamples, TokenizedSamples],
-                 device: torch.device,
-                 pad_token_id: int,
-                 max_seq_len: int,
-                 batch_size_train: int = 16,
-                 batch_size_dev: int = 64,
-                 cls_dist: int = -999) -> tuple[DataLoader, DataLoader, DataLoader]:
-    train, dev, test = [[sample for sample in subset
-                         if len(sample[0][0]) <= max_seq_len]
-                        for subset in data]
-    collate_fn = make_collator(device, pad_token_id=pad_token_id, cls_dist=cls_dist)
-    return (DataLoader(train, batch_size_train, shuffle=True, collate_fn=collate_fn),
-            DataLoader(sorted(dev, key=lambda x: len(x[0][0])), batch_size_dev, shuffle=False, collate_fn=collate_fn),
-            DataLoader(sorted(test, key=lambda x: len(x[0][0])), batch_size_dev, shuffle=False, collate_fn=collate_fn))
+def make_loader(data: TokenizedSamples,
+                device: torch.device,
+                pad_token_id: int,
+                max_seq_len: int,
+                batch_size: int = 16,
+                sort: bool = False,
+                cls_dist: int = -999) -> DataLoader:
+    subset = [sample for sample in data if len(sample[0][0]) <= max_seq_len]
+    cfn = make_collator(device, pad_token_id=pad_token_id, cls_dist=cls_dist)
+    if sort:
+        subset = sorted(subset, key=lambda sample: len(sample[0][0]))
+    return DataLoader(subset, shuffle=not sort, collate_fn=cfn, batch_size=batch_size)
