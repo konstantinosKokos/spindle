@@ -5,7 +5,7 @@ This repository combines
 and
 * https://github.com/konstantinosKokos/neural-proof-nets/
 
-into an open-source for parsing Dutch into syntactic proofs of multiplicative intuitionuistic linear logic with 
+into a single package for parsing Dutch into syntactic proofs of multiplicative intuitionuistic linear logic with 
 dependency modalities, and the equivalent semantic λ-terms.
 
 ---
