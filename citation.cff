@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+title: Dynamic Graph Proof Nets
+message: >-
+  If you use this software in an academic work,
+  please cite the repository using the following
+  metadata.
+type: software
+authors:
+  - given-names: Konstantinos
+    family-names: Kogkalidis
+    affiliation: Utrecht University

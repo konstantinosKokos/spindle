@@ -118,22 +118,22 @@ class BinaryPathEncoder(Module):
     def __init__(self, dim: int):
         super().__init__()
         self.primitives = Parameter(torch.nn.init.normal_(torch.empty(2, dim, dim)))
-        self.init = Parameter(torch.nn.init.normal_(torch.empty(dim)))
+        self.init = Parameter(torch.nn.init.normal_(torch.empty(1, dim)))
         self.dim = dim
         self.precomputed = None
 
-    def precompute(self, up_to: int):
-        self.precomputed = self.eager_precompute(up_to + 1)
-
-    def eager_precompute(self, up_to: int):
+    def compute_range(self, up_to: int) -> Tensor:
         words = [torch.tensor(self.node_pos_to_path(i), device=self.primitives.device, dtype=torch.long)
-                 for i in range(1, up_to + 1)]
+                 for i in range(1, up_to + 2)]  # right inclusive, offset by 1
         words = pad_sequence(words, padding_value=2)
-        seeds = self.init.data.unsqueeze(0).repeat(words.shape[0], 1)
+        seeds = self.init.data.repeat(words.shape[0], 1)
         for step in range(words.shape[1]):
             seeds[words[:, step] == 0] = linear(seeds[words[:, step] == 0], self.primitives[0])
             seeds[words[:, step] == 1] = linear(seeds[words[:, step] == 1], self.primitives[1])
         return seeds
+
+    def precompute(self, up_to_int: int) -> None:
+        self.precomputed = self.compute_range(up_to_int)
 
     @staticmethod
     def node_pos_to_path(idx: int) -> list[int]:
