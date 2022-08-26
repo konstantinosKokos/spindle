@@ -74,6 +74,8 @@ analyses = inferer.analyze(['Dit is een vorbeeldzin'])
 ## Citing
 Please cite the following two papers if you use (parts of) this repository for your own work.
 
+If you use the package as an end-to-end parser, also cite this repository.
+
 > ### Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions
 > ```latex
 > @misc{https://doi.org/10.48550/arxiv.2203.12235,
@@ -102,6 +104,13 @@ Please cite the following two papers if you use (parts of) this repository for y
 >    url = "https://aclanthology.org/2020.conll-1.3",
 >    doi = "10.18653/v1/2020.conll-1.3",
 >    pages = "26--40",
+> }
+> ```
+> ### This repository
+> ```latex
+> @software{dynamic-proof-nets,
+>   title = {{Dynamic Proof Nets}}
+>   author = {Kogkalidis, Konstantinos},
 > }
 > ```
 

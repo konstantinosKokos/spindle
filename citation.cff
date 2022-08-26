@@ -1,9 +1,9 @@
 cff-version: 1.2.0
-title: Dynamic Graph Proof Nets
+title: Dynamic Proof Nets
 message: >-
   If you use this software in an academic work,
-  please cite the repository using the following
-  metadata.
+  please cite the repository and relevant
+  papers (see README).
 type: software
 authors:
   - given-names: Konstantinos
