@@ -23,7 +23,7 @@ Pending better packaging, installation involves the following steps:
 >   ```
 >   If you're having compatibility issues, you can revert to the last tested commit:
 >   ```
->   git checkout -b safe e9ddab53d8013eb9271628ae1e01a241949702be
+>   git checkout -b safe 11af99c9c39215fd8b100564b7097d242b694916
 >   ```
 > ### 3. Link the two 
 >   Walk into the `dynamic-proof-nets` directory and make a symlink to the LassyExtraction module.
@@ -70,7 +70,7 @@ inferer = InferenceWrapper(weight_path='./data/model_weights.pt',
                            atom_map_path='./data/atom_map.tsv',
                            config_path='./data/bert_config.json', 
                            device='cuda')  # replace with 'cpu' if no GPU accelaration
-analyses = inferer.analyze(['Dit is een vorbeeldzin'])
+analyses = inferer.analyze(['Dit is een voοrbeeldzin'])
 ```
 
 If you want to inspect examples outside the console, you can compile proofs into TeX using the extraction code:
@@ -106,28 +106,28 @@ If you use the package as an end-to-end parser, also cite this repository.
 > ### Neural Proof Nets
 > ```latex
 > @inproceedings{kogkalidis-etal-2020-neural,
->    title = "Neural Proof Nets",
->    author = "Kogkalidis, Konstantinos  and
+>    title = {Neural Proof Nets},
+>    author = {Kogkalidis, Konstantinos  and
 >      Moortgat, Michael  and
->      Moot, Richard",
->    booktitle = "Proceedings of the 24th Conference on Computational Natural Language Learning",
->    month = nov,
->    year = "2020",
->    address = "Online",
->    publisher = "Association for Computational Linguistics",
->    url = "https://aclanthology.org/2020.conll-1.3",
->    doi = "10.18653/v1/2020.conll-1.3",
->    pages = "26--40",
+>      Moot, Richard},
+>    booktitle = {Proceedings of the 24th Conference on Computational Natural Language Learning},
+>    month = {nov},
+>    year = {2020},
+>    address = {Online},
+>    publisher = {Association for Computational Linguistics},
+>    url = {https://aclanthology.org/2020.conll-1.3},
+>    doi = {10.18653/v1/2020.conll-1.3},
+>    pages = {26--40},
 > }
 > ```
 > ### ÆTHEL
 > ```latex
 > @inproceedings{kogkalidis2020aethel,
->  title={{\AE}THEL: Automatically Extracted Typelogical Derivations for Dutch},
->  author={Kogkalidis, Konstantinos and Moortgat, Michael and Moot, Richard},
->  booktitle={Proceedings of the 12th Language Resources and Evaluation Conference},
->  pages={5257--5266},
->  year={2020}
+>  title = {{\AE}THEL: Automatically Extracted Typelogical Derivations for Dutch},
+>  author = {Kogkalidis, Konstantinos and Moortgat, Michael and Moot, Richard},
+>  booktitle = {Proceedings of the 12th Language Resources and Evaluation Conference},
+>  pages = {5257--5266},
+>  year = {2020}
 > }
 > ```
 > ### This repository
