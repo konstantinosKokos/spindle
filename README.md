@@ -17,9 +17,9 @@ Pending better packaging, installation involves the following steps:
 >   ```
 >   git clone git@github.com:konstantinosKokos/dynamic-proof-nets.git
 >  ``` 
-> ### 2. Create a local clone of lassy-tlg-extraction
+> ### 2. Create a local clone of aethel
 >   ```
->   git clone git@github.com:konstantinosKokos/lassy-tlg-extraction.git
+>   git clone git@github.com:konstantinosKokos/aethel.git
 >   ```
 >   If you're having compatibility issues, you can revert to the last tested commit:
 >   ```
@@ -29,7 +29,7 @@ Pending better packaging, installation involves the following steps:
 >   Walk into the `dynamic-proof-nets` directory and make a symlink to the LassyExtraction module.
 >   ```
 >   cd dynamic-proof-nets
->   ln -s ../lassy-tlg-extraction/LassyExtraction ./LassyExtraction
+>   ln -s ../aethel/LassyExtraction ./LassyExtraction
 >   ```
 > ### 4. Prepare your environment
 >   * #### Setup and source a **fresh** python 3.10 environment, for instance using conda. 
