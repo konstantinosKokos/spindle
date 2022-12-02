@@ -1,21 +1,16 @@
-# Geometry-Aware Supertagging meets Neural Proof Nets
+# spindle
 
-This repository combines
-* https://github.com/konstantinosKokos/dynamic-graph-supertagging/
-and
-* https://github.com/konstantinosKokos/neural-proof-nets/
-
-into a single package for parsing Dutch into syntactic proofs of multiplicative intuitionuistic linear logic with 
-dependency modalities, and the equivalent semantic λ-terms.
+Use to parse Dutch sentences into deep syntactic parses expressed proofs/terms of multiplicative intuitionuistic linear logic with 
+dependency modalities.
 
 ---
-
 ## How-To
+
 Pending better packaging, installation involves the following steps:
 
 > ### 1. Create a local clone of this repository
 >   ```
->   git clone git@github.com:konstantinosKokos/dynamic-proof-nets.git
+>   git clone git@github.com:konstantinosKokos/spindle.git
 >  ``` 
 > ### 2. Create a local clone of aethel
 >   ```
@@ -26,9 +21,9 @@ Pending better packaging, installation involves the following steps:
 >   git checkout -b safe 11af99c9c39215fd8b100564b7097d242b694916
 >   ```
 > ### 3. Link the two 
->   Walk into the `dynamic-proof-nets` directory and make a symlink to the LassyExtraction module.
+>   Walk into the `spindle` directory and make a symlink to the LassyExtraction module.
 >   ```
->   cd dynamic-proof-nets
+>   cd spindle
 >   ln -s ../aethel/LassyExtraction ./LassyExtraction
 >   ```
 > ### 4. Prepare your environment
@@ -86,10 +81,8 @@ compile_tex(sample_to_tex(sample=...,                   # an Analysis object
 ---
 
 ## Citing
-Please cite the following two papers if you use (parts of) this repository for your own work.
 
-If you use the package as an end-to-end parser, also cite this repository.
-
+Pending a unifying publication, please cite the following papers if you use spindle: 
 > ### Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions
 > ```latex
 > @misc{https://doi.org/10.48550/arxiv.2203.12235,
@@ -129,16 +122,9 @@ If you use the package as an end-to-end parser, also cite this repository.
 >  pages = {5257--5266},
 >  year = {2020}
 > }
-> ```
-> ### This repository
-> ```latex
-> @software{dynamic-proof-nets,
->   title = {{Dynamic Proof Nets}}
->   author = {Kogkalidis, Konstantinos},
-> }
-> ```
 
 ---
 
 ## Contact & Support
-If you have any questions or comments or encounter any difficulties, please feel free to [get in touch](k.kogkalidis@uu.nl).
+If you have any questions or comments or encounter any difficulties, please feel free to [get in touch](k.kogkalidis@uu.nl),
+or [open an issue](https://github.com/konstantinosKokos/spindle/issues/new/choose).
