@@ -1,6 +1,6 @@
 # spindle
 
-Use to parse Dutch sentences into deep syntactic parses expressed proofs/terms of multiplicative intuitionuistic linear logic with 
+Use to parse Dutch sentences into deep syntactic parses expressed as proofs/terms of multiplicative intuitionuistic linear logic with 
 dependency modalities.
 
 ---
