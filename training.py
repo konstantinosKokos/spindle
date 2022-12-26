@@ -19,15 +19,15 @@ NUM_EPOCHS = 30
 SCHEDULE_EPOCHS = 30
 MAX_DIST = 6
 MAX_SEQ_LEN = 199
-NUM_SYMBOLS = 80
-FIRST_BINARY = 31
+NUM_SYMBOLS = 83
+FIRST_BINARY = 32
 MAX_DEPTH = 15
-BATCH_SIZE = 64
+BATCH_SIZE = 48
 
 
 def train(device: torch.device = 'cuda',
-          encoder_core: str = 'GroNLP/bert-base-dutch-cased',
-          bert_type: str = 'bert',
+          encoder_core: str = 'pdelobelle/robbert-v2-dutch-base',
+          bert_type: str = 'roberta',
           storage_dir: str = './log/',
           log_path: str = './log/log.txt',
           init_epoch: int = 0,
@@ -37,8 +37,8 @@ def train(device: torch.device = 'cuda',
           schedule_epochs: int = SCHEDULE_EPOCHS,
           max_seq_len: int = MAX_SEQ_LEN,
           max_depth: int = MAX_DEPTH,
-          pad_token_id: int = 3,
-          sep_token_id: int = 2,
+          pad_token_id: int = 1,  # 3
+          sep_token_id: int = 2,  # 2 // eos
           num_epochs: int = NUM_EPOCHS,
           batch_size: int = BATCH_SIZE):
 

@@ -106,7 +106,7 @@ def tree_to_ft(tree: Tree[Symbol], polarity: bool) -> FormulaTree:
                     case ('!', *ds):
                         return UnaryFT('diamond',
                                        UnaryFT('box', convert(content, p), ''.join(ds)),
-                                        ''.join(ds))
+                                       ''.join(ds))
                     case _:
                         raise ValueError
             case Binary(_, left, right):
@@ -142,7 +142,7 @@ def from_aethel(sample: AethelSample) -> Sample:
         subset=sample.subset)
 
 
-def preprocess(load_path: str = '../lassy-tlg-extraction/data/interface.pickle') \
+def preprocess(load_path: str = '../lassy-tlg-extraction/data/aethel_1.0.0a4.pickle') \
         -> tuple[list[Sample], list[Sample], list[Sample]]:
     aethel_samples = ProofBank.load_data(load_path)
     processed_samples = []
@@ -152,7 +152,7 @@ def preprocess(load_path: str = '../lassy-tlg-extraction/data/interface.pickle')
         except ValueError:
             continue
     print(f'Converted {len(processed_samples)} of {len(aethel_samples)}')
-    with open('./experiments/interface/atom_map.tsv', 'w') as f:
+    with open('./data/atom_map.tsv', 'w') as f:
         symbols = extract_unique_symbols([tree for s in processed_samples for tree in s.trees])
         id_to_symbol, symbol_to_arity = make_symbol_map(symbols)
         for i, s in id_to_symbol.items():
