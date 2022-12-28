@@ -1,5 +1,3 @@
-import pdb
-
 from .tree_decoding import Decoder, BinaryPathEncoder
 from .encoder import Encoder
 from .embedding import InvertibleEmbedding
@@ -140,6 +138,26 @@ class Parser(Module):
                 return preds, decoder_reprs, node_pos
         return preds, decoder_reprs, node_pos
 
+    def forward_tagger_train(self,
+                             input_ids: Tensor,
+                             attention_mask: Tensor,
+                             token_clusters: Tensor,
+                             node_ids: list[Tensor],
+                             node_pos: list[Tensor],
+                             node_to_root_index: list[Tensor],
+                             root_edge_index: Tensor,
+                             root_dist: Tensor,
+                             cls_dist: int = -999) -> tuple[list[Tensor], list[Tensor]]:
+        root_features = self.encode(input_ids, attention_mask, token_clusters)
+        root_edge_index, root_edge_attr = self.embed_sentential_edges(root_edge_index, root_dist, cls_dist)
+        token_preds, decoder_reprs = self.decode_train(root_features=root_features,
+                                                       node_ids=node_ids,
+                                                       node_pos=node_pos,
+                                                       root_to_node_index=node_to_root_index,
+                                                       root_edge_index=root_edge_index,
+                                                       root_edge_attr=root_edge_attr)
+        return token_preds, decoder_reprs
+
     def forward_train(self,
                       input_ids: Tensor,
                       attention_mask: Tensor,
@@ -151,14 +169,15 @@ class Parser(Module):
                       root_dist: Tensor,
                       link_indices: list[Tensor],
                       cls_dist: int = -999) -> tuple[list[Tensor], list[Tensor]]:
-        root_features = self.encode(input_ids, attention_mask, token_clusters)
-        root_edge_index, root_edge_attr = self.embed_sentential_edges(root_edge_index, root_dist, cls_dist)
-        token_preds, decoder_reprs = self.decode_train(root_features=root_features,
-                                                       node_ids=node_ids,
-                                                       node_pos=node_pos,
-                                                       root_to_node_index=node_to_root_index,
-                                                       root_edge_index=root_edge_index,
-                                                       root_edge_attr=root_edge_attr)
+        token_preds, decoder_reprs = self.forward_tagger_train(input_ids=input_ids,
+                                                               attention_mask=attention_mask,
+                                                               token_clusters=token_clusters,
+                                                               node_ids=node_ids,
+                                                               node_pos=node_pos,
+                                                               node_to_root_index=node_to_root_index,
+                                                               root_edge_index=root_edge_index,
+                                                               root_dist=root_dist,
+                                                               cls_dist=cls_dist)
         matches = self.link(decoder_reprs, link_indices)
         return token_preds, matches
 
