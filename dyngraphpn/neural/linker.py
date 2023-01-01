@@ -1,5 +1,3 @@
-import pdb
-
 import torch
 from torch import Tensor, logsumexp
 from torch.nn import Module, Dropout
@@ -15,15 +13,14 @@ class Linker(Module):
 
     def forward(self, reprs: list[Tensor],
                 indices: list[Tensor],
-                num_iters: int = 3,
+                num_iters: int,
                 training: bool = True,
                 tau: float = 1.) -> list[Tensor]:
         return self.gather_and_link(reprs, indices, num_iters, training, tau)
 
     def compute_link_strengths(self, negative: Tensor, positive: Tensor) -> Tensor:
-        negative = self.dropout(negative)
-        positive = self.dropout(positive)
-        return contract('bix,bjx,x->bij', negative, positive, self.weight)  # type: ignore
+        weight = self.dropout(self.weight)
+        return contract('bix,bjx,x->bij', negative, positive, weight)  # type: ignore
 
     def gather_and_link(self,
                         reprs: list[Tensor],

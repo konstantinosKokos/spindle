@@ -55,7 +55,7 @@ def train(device: torch.device = 'cuda',
                    encoder_config_or_name=encoder_core,
                    bert_type=bert_type,
                    sep_token_id=sep_token_id).to(device)
-    tagging_loss_fn = TaggingLoss(reduction='sum', label_smoothing=0.1)
+    tagging_loss_fn = TaggingLoss(reduction='sum')
     linking_loss_fn = LinkingLoss()
     opt = AdamW([
         {'params': model.encoder.core.parameters(), 'lr': 1e-5},

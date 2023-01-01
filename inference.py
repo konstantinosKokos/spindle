@@ -1,5 +1,3 @@
-import pdb
-
 import torch
 from torch import Tensor
 
@@ -36,7 +34,7 @@ class InferenceWrapper:
                  config_path: str | None = './data/bert_config.json',
                  device: torch.device = 'cuda'):
         encoder = 'GroNLP/bert-base-dutch-cased' if config_path is None else BertConfig.from_json_file(config_path)
-        self.parser = Parser(num_classes=80,
+        self.parser = Parser(num_classes=83,
                              max_dist=6,
                              encoder_config_or_name=encoder,
                              bert_type='bert',
@@ -47,6 +45,8 @@ class InferenceWrapper:
         self.parser.eval()
         self.parser.path_encoder.precompute(2 ** 16)
         self.device = device
+        self.first_binary = next(k for k, v in sorted(self.atom_tokenizer.id_to_token.items(), key=lambda kv: kv[0])
+                                 if self.atom_tokenizer.symbol_arities[v] == 2)
 
     @torch.no_grad()
     def analyze(self, sentences: list[str]) -> list[Analysis]:
@@ -62,7 +62,7 @@ class InferenceWrapper:
                                       token_clusters=encoder_batch.cluster_ids,
                                       root_edge_index=encoder_batch.edge_index,
                                       root_dist=encoder_batch.edge_attr,
-                                      first_binary=31,
+                                      first_binary=self.first_binary,
                                       max_type_depth=16)
         groups = group_trees(self.atom_tokenizer.levels_to_ptrees([n.tolist() for n in node_ids]),
                              list(accumulate(sent_lens)))
@@ -72,7 +72,7 @@ class InferenceWrapper:
             f_conclusion, f_assignments = ptrees_to_formulas(ptrees)
             lex_phrases = make_lex_phrases(words, f_assignments)
             if (candidates := ptrees_to_candidates(ptrees)) is not None:
-                grouped_matches = self.parser.link(decoder_reprs, candidates.indices, training=False)
+                grouped_matches = self.parser.link(decoder_reprs, candidates.indices, training=False, num_iters=3)
                 links = matches_to_links(grouped_matches, candidates.backpointers)
                 proof = attempt_traversal(links, f_assignments, f_conclusion)
             else:
@@ -95,8 +95,14 @@ def matches_to_links(grouped_matches: list[Tensor], backpointers: list[BackPoint
 
     def sign_to_ft(s: str, idx: int, pol: bool) -> FormulaTree: return tree_to_ft(Leaf(Symbol(s, idx)), pol)
 
+    def solve(x: Tensor) -> list[int]:
+        discretized = x.argmax(dim=-1).tolist()
+        if len(set(discretized)) == len(discretized):
+            return discretized
+        return linear_sum_assignment(x, maximize=True)[1].tolist()
+
     for match_tensor, backpointer_group in zip(grouped_matches, backpointers):
-        matches = [linear_sum_assignment(match, maximize=True)[1].tolist() for match in match_tensor.exp().cpu()]
+        matches = [solve(m) for m in match_tensor.exp().cpu()]
         for match, (_, atom, neg_indices, pos_indices) in zip(matches, backpointer_group):
             links |= {sign_to_ft(atom, neg_indices[i], False): sign_to_ft(atom, pos_indices[match[i]], True)
                       for i in range(len(match))}

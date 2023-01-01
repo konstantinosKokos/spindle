@@ -216,8 +216,9 @@ class Parser(Module):
 
     def link(self, reprs: list[Tensor],
              indices: list[Tensor],
-             training: bool = True) -> list[Tensor]:
-        return self.linker(reprs, indices, training=training)
+             training: bool = True,
+             num_iters: int = 3) -> list[Tensor]:
+        return self.linker(reprs, indices, training=training, num_iters=num_iters)
 
     def save(self, path: str):
         torch.save(self.state_dict(), path)
