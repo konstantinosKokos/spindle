@@ -34,7 +34,7 @@ class InferenceWrapper:
                  config_path: str | None = './data/bert_config.json',
                  device: torch.device = 'cuda'):
         encoder = 'GroNLP/bert-base-dutch-cased' if config_path is None else BertConfig.from_json_file(config_path)
-        self.parser = Parser(num_classes=83,
+        self.parser = Parser(num_classes=81,
                              max_dist=6,
                              encoder_config_or_name=encoder,
                              bert_type='bert',

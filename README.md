@@ -18,7 +18,7 @@ Pending better packaging, installation involves the following steps:
 >   ```
 >   If you're having compatibility issues, you can revert to the last tested commit:
 >   ```
->   git checkout -b safe 7a2a3b74608b82be0ff63722d4f8db5109e6126f
+>   git checkout -b safe 7e9e4c472df22582708ff03a35cf90718c17c60e
 >   ```
 > ### 3. Link the two 
 >   Walk into the `spindle` directory and make a symlink to the LassyExtraction module.
@@ -54,7 +54,7 @@ Pending better packaging, installation involves the following steps:
 >    ```
 >    Where you'd need to substitute for your own system's cuda version if you have one.
 > ### 5. Download pretrained model weights
->   These can be found [here](https://surfdrive.surf.nl/files/index.php/s/r6vZgJx0ClTfdzV).
+>   These can be found [here](https://surfdrive.surf.nl/files/index.php/s/3TN0r1HwQehJJkR).
 >  Extract and place them in the `data` directory.
 
 You're good to go!
