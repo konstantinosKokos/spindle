@@ -142,7 +142,7 @@ def from_aethel(sample: AethelSample) -> Sample:
         subset=sample.subset)
 
 
-def preprocess(load_path: str = '../lassy-tlg-extraction/data/aethel_1.0.0a4.pickle') \
+def preprocess(load_path: str = '../lassy-tlg-extraction/data/aethel_1.0.0a5.pickle') \
         -> tuple[list[Sample], list[Sample], list[Sample]]:
     aethel_samples = ProofBank.load_data(load_path)
     processed_samples = []
