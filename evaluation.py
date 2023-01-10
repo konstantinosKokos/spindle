@@ -4,6 +4,7 @@ import torch
 
 from dyngraphpn.data.tokenization import AtomTokenizer, load_data, group_trees
 from dyngraphpn.data.processing import merge_preds_on_true, get_word_starts
+from dyngraphpn.data.aethel_interface import ft_to_tree
 from dyngraphpn.neural.batching import make_loader
 from dyngraphpn.neural.model import Parser
 

@@ -1,0 +1,4 @@
+[submodule "aethel"]
+	path = aethel
+	url = https://github.com/konstantinosKokos/aethel
+	branch = stable

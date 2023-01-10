@@ -11,22 +11,10 @@ Pending better packaging, installation involves the following steps:
 > ### 1. Create a local clone of this repository
 >   ```
 >   git clone git@github.com:konstantinosKokos/spindle.git
->  ``` 
-> ### 2. Create a local clone of aethel
->   ```
->   git clone git@github.com:konstantinosKokos/aethel.git
->   ```
->   If you're having compatibility issues, you can revert to the last tested commit:
->   ```
->   git checkout -b safe 7e9e4c472df22582708ff03a35cf90718c17c60e
->   ```
-> ### 3. Link the two 
->   Walk into the `spindle` directory and make a symlink to the LassyExtraction module.
->   ```
->   cd spindle
->   ln -s ../aethel/LassyExtraction ./LassyExtraction
->   ```
-> ### 4. Prepare your environment
+>   git submodule init
+>   git submodule update
+>  ```
+> ### 2. Prepare your environment
 >   * #### Setup and source a **fresh** python 3.10 environment, for instance using conda. 
 >     ```
 >      conda create -n [VENV_NAME] python=3.10
@@ -53,7 +41,7 @@ Pending better packaging, installation involves the following steps:
 >     pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.11.0+cpu.html
 >    ```
 >    Where you'd need to substitute for your own system's cuda version if you have one.
-> ### 5. Download pretrained model weights
+> ### 3. Download pretrained model weights
 >   These can be found [here](https://surfdrive.surf.nl/files/index.php/s/3TN0r1HwQehJJkR).
 >  Extract and place them in the `data` directory.
 
