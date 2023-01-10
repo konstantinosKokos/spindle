@@ -58,7 +58,7 @@ analyses = inferer.analyze(['Dit is een voοrbeeldzin'])
 
 If you want to inspect examples outside the console, you can compile proofs into TeX using the extraction code:
 ```python
-from LassyExtraction.utils.tex import compile_tex, sample_to_tex
+from aethel.LassyExtraction.utils.tex import compile_tex, sample_to_tex
 compile_tex(sample_to_tex(sample=...,                   # an Analysis object
                           show_intermediate_terms=...,  # bool
                           show_words_at_leaves=...,     # bool
