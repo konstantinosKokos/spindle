@@ -1,10 +1,10 @@
-# spindle
+# :spider: :spider_web: spindle
 
 Use to parse Dutch sentences into deep syntactic parses expressed as proofs/terms of multiplicative intuitionuistic linear logic with 
 dependency modalities.
 
 ---
-## How-To
+## :wrench: How-To
 
 Pending better packaging, installation involves the following steps:
 
@@ -68,7 +68,7 @@ compile_tex(sample_to_tex(sample=...,                   # an Analysis object
 
 ---
 
-## Citing
+## :notebook: Citing
 
 Pending a unifying publication, please cite the following papers if you use spindle: 
 > ### Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions
