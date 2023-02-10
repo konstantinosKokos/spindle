@@ -1,4 +1,5 @@
-# :spider: :spider_web: spindle
+# :spider: :spider_web: spind<sup>2</sup>λe
+> **S**pindle **P**arses **In**to **D**ependency-**D**ecorated **λ** **E**xpressions 
 
 Use to parse Dutch sentences into deep syntactic parses expressed as proofs/terms of multiplicative intuitionuistic linear logic with 
 dependency modalities.
