@@ -18,7 +18,7 @@ Pending better packaging, installation involves the following steps:
 >      conda create -n [VENV_NAME] python=3.10
 >      conda activate [VENV_NAME]
 >      ```
->   * #### Install `aethel`
+>   * #### Install [aethel](https://github.com//konstantinosKokos/aethel)
 >     ``` 
 >       pip install git+https://github.com/konstantinosKokos/aethel@stable
 >     ```
