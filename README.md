@@ -11,8 +11,6 @@ Pending better packaging, installation involves the following steps:
 > ### 1. Create a local clone of this repository
 >   ```
 >   git clone git@github.com:konstantinosKokos/spindle.git
->   git submodule init
->   git submodule update
 >  ```
 > ### 2. Prepare your environment
 >   * #### Setup and source a **fresh** python 3.10 environment, for instance using conda. 
@@ -20,6 +18,10 @@ Pending better packaging, installation involves the following steps:
 >      conda create -n [VENV_NAME] python=3.10
 >      conda activate [VENV_NAME]
 >      ```
+>   * #### Install `aethel`
+>     ``` 
+>       pip install git+https://github.com/konstantinosKokos/aethel@stable
+>     ```
 >   * #### Install PyTorch 1.11 and opt_einsum
 >     ```
 >     conda install pytorch==1.11.0 -c pytorch
@@ -27,7 +29,7 @@ Pending better packaging, installation involves the following steps:
 >     ```
 >   * #### Install Transformers
 >     ```
->     pip install transformers
+>     pip install transformers==4.20.1
 >     ```
 >   * #### Finally, install PyTorch Geometric.
 >    If you're lucky, this should work:
@@ -58,7 +60,7 @@ analyses = inferer.analyze(['Dit is een voοrbeeldzin'])
 
 If you want to inspect examples outside the console, you can compile proofs into TeX using the extraction code:
 ```python
-from aethel.LassyExtraction.utils.tex import compile_tex, sample_to_tex
+from aethel.utils.tex import compile_tex, sample_to_tex
 compile_tex(sample_to_tex(sample=...,                   # an Analysis object
                           show_intermediate_terms=...,  # bool
                           show_words_at_leaves=...,     # bool
