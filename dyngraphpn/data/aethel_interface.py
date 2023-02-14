@@ -1,7 +1,6 @@
-from aethel.LassyExtraction.frontend import Sample as AethelSample, ProofBank, LexicalPhrase, LexicalItem, Type, Proof
-from aethel.LassyExtraction.mill.nets import (FormulaTree, UnaryFT, BinaryFT, LeafFT,
-                                              proof_to_links, links_to_proof, tree_to_type as ft_to_type,
-                                              AxiomLinks)
+from aethel.frontend import Sample as AethelSample, ProofBank, LexicalPhrase, LexicalItem, Type, Proof
+from aethel.mill.nets import (FormulaTree, UnaryFT, BinaryFT, LeafFT,
+                              proof_to_links, links_to_proof, tree_to_type as ft_to_type, AxiomLinks)
 
 from dyngraphpn.data.tree import Tree, Leaf, Unary, Binary, Symbol
 from dyngraphpn.data.processing import Sample, make_symbol_map, extract_unique_symbols, pad_mwus
