@@ -72,47 +72,20 @@ compile_tex(sample_to_tex(sample=...,                   # an Analysis object
 ---
 
 ## :notebook: Citing
+Please cite the following [paper](https://arxiv.org/abs/2302.12050) if you use spindle:
 
-Pending a unifying publication, please cite the following papers if you use spindle: 
-> ### Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions
-> ```latex
-> @misc{https://doi.org/10.48550/arxiv.2203.12235,
->   doi = {10.48550/ARXIV.2203.12235},  
->  url = {https://arxiv.org/abs/2203.12235},
->  author = {Kogkalidis, Konstantinos and Moortgat, Michael},
->  keywords = {Computation and Language (cs.CL), Machine Learning (cs.LG), FOS: Computer and information sciences, FOS: Computer and information sciences},
->  title = {Geometry-Aware Supertagging with Heterogeneous Dynamic Convolutions},
->  publisher = {arXiv},
->  year = {2022},
->  copyright = {Creative Commons Attribution 4.0 International}
-> }
-> ```
-> ### Neural Proof Nets
-> ```latex
-> @inproceedings{kogkalidis-etal-2020-neural,
->    title = {Neural Proof Nets},
->    author = {Kogkalidis, Konstantinos  and
->      Moortgat, Michael  and
->      Moot, Richard},
->    booktitle = {Proceedings of the 24th Conference on Computational Natural Language Learning},
->    month = {nov},
->    year = {2020},
->    address = {Online},
->    publisher = {Association for Computational Linguistics},
->    url = {https://aclanthology.org/2020.conll-1.3},
->    doi = {10.18653/v1/2020.conll-1.3},
->    pages = {26--40},
-> }
-> ```
-> ### ÆTHEL
-> ```latex
-> @inproceedings{kogkalidis2020aethel,
->  title = {{\AE}THEL: Automatically Extracted Typelogical Derivations for Dutch},
->  author = {Kogkalidis, Konstantinos and Moortgat, Michael and Moot, Richard},
->  booktitle = {Proceedings of the 12th Language Resources and Evaluation Conference},
->  pages = {5257--5266},
->  year = {2020}
-> }
+```bibtex
+@inproceedings{spindle,
+    title = "{SPINDLE}: Spinning Raw Text into Lambda Terms with Graph Attention",
+    author = {Kogkalidis, Konstantinos  and
+		Moortgat, Michael and
+		Moot, Richard},
+	booktitle = "Proceedings of the 17th Conference of the European Chapter of the Association for Computational Linguistics: System Demonstrations",
+	month = may,
+	year = "2023",
+ 	address = "Dubrovnik, Croatia",
+    publisher = "Association for Computational Linguistics",
+```
 
 ---
 
