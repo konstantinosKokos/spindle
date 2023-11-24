@@ -5,6 +5,15 @@ Use to parse Dutch sentences into deep syntactic parses expressed as proofs/term
 dependency modalities.
 
 ---
+
+## :computer: At Home
+
+Try out the online version at the link below (wip):
+
+>https://parseport.hum.uu.nl/spindle
+
+---
+
 ## :wrench: How-To
 
 Pending better packaging, installation involves the following steps:
@@ -89,6 +98,6 @@ Please cite the following [paper](https://arxiv.org/abs/2302.12050) if you use s
 
 ---
 
-## Contact & Support
+## :question: Contact & Support
 If you have any questions or comments or encounter any difficulties, please feel free to [get in touch](k.kogkalidis@uu.nl),
 or [open an issue](https://github.com/konstantinosKokos/spindle/issues/new/choose).
