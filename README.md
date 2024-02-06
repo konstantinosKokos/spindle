@@ -54,7 +54,7 @@ Pending better packaging, installation involves the following steps:
 >    ```
 >    Where you'd need to substitute for your own system's cuda version if you have one.
 > ### 3. Download pretrained model weights
->   These can be found [here](https://surfdrive.surf.nl/files/index.php/s/3TN0r1HwQehJJkR).
+>   These can be found [here](https://www.dropbox.com/scl/fi/osdraor5zzcf43l2q001z/model_weights.zip?rlkey=e1bcfbji93ug4wcmx9zrlfqo0&dl=0).
 >  Extract and place them in the `data` directory.
 
 You're good to go!
