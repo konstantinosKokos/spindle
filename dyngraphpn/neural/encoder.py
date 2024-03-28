@@ -3,7 +3,7 @@ from torch import Tensor
 from torch.nn import Module, Linear
 from transformers import BertModel, RobertaModel, CamembertModel
 
-from torch_geometric.nn import GlobalAttention
+from torch_geometric.nn.aggr import AttentionalAggregation as GlobalAttention
 from .utils import RMSNorm
 
 

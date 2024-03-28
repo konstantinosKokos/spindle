@@ -1,7 +1,6 @@
 import torch
-from torch import Tensor, logsumexp
+from torch import Tensor, logsumexp, einsum
 from torch.nn import Module, Dropout
-from opt_einsum import contract
 
 
 class Linker(Module):
@@ -20,7 +19,7 @@ class Linker(Module):
 
     def compute_link_strengths(self, negative: Tensor, positive: Tensor) -> Tensor:
         weight = self.dropout(self.weight)
-        return contract('bix,bjx,x->bij', negative, positive, weight)  # type: ignore
+        return einsum('bix,bjx,x->bij', negative, positive, weight)  # type: ignore
 
     def gather_and_link(self,
                         reprs: list[Tensor],

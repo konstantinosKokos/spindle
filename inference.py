@@ -2,13 +2,12 @@ import torch
 from torch import Tensor
 
 from dyngraphpn.neural.model import Parser
-from dyngraphpn.data.tokenization import (Tokenizer, AtomTokenizer, Leaf, Symbol, Tree,
-                                          group_trees, index_ptrees)
+from dyngraphpn.data.tokenization import (
+    Tokenizer, AtomTokenizer, Leaf, Symbol, Tree, group_trees, index_ptrees)
 from dyngraphpn.data.processing import merge_on_word_starts, get_word_starts
 from dyngraphpn.neural.batching import batchify_encoder_inputs, ptrees_to_candidates, BackPointer
-from dyngraphpn.data.aethel_interface import (tree_to_ft, links_to_proof, ft_to_type,
-                                              LexicalPhrase, LexicalItem, Proof,
-                                              AxiomLinks, FormulaTree)
+from dyngraphpn.data.aethel_interface import (
+    tree_to_ft, links_to_proof, ft_to_type, LexicalPhrase, LexicalItem, Proof, AxiomLinks, FormulaTree)
 
 from dataclasses import dataclass
 from transformers import BertConfig
@@ -32,13 +31,14 @@ class InferenceWrapper:
                  weight_path: str,
                  atom_map_path: str = './data/atom_map.tsv',
                  config_path: str | None = './data/bert_config.json',
-                 device: torch.device = 'cuda'):
+                 device: str | torch.device = 'cuda'):
         encoder = 'GroNLP/bert-base-dutch-cased' if config_path is None else BertConfig.from_json_file(config_path)
-        self.parser = Parser(num_classes=81,
-                             max_dist=6,
-                             encoder_config_or_name=encoder,
-                             bert_type='bert',
-                             sep_token_id=2).to(device)
+        self.parser = Parser(
+            num_classes=81,
+            max_dist=6,
+            encoder_config_or_name=encoder,
+            bert_type='bert',
+            sep_token_id=2).to(device)
         self.tokenizer = Tokenizer(core='GroNLP/bert-base-dutch-cased', bert_type='bert')
         self.atom_tokenizer = AtomTokenizer.from_file(atom_map_path)
         self.parser.load(weight_path, map_location=device, strict=True)

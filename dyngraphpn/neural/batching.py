@@ -9,8 +9,9 @@ from typing import Iterator, Callable
 from dataclasses import dataclass
 from itertools import product, zip_longest, chain, groupby
 
-from ..data.tokenization import (Tree, Binary, Leaf, Symbol,
-                                 TokenizedTrees, TokenizedMatchings, TokenizedSample, TokenizedSamples)
+from ..data.tokenization import (
+    Tree, Binary, Leaf, Symbol, TokenizedTrees, TokenizedMatchings, TokenizedSample, TokenizedSamples
+)
 
 
 def pad_sequence(sequence: list[Tensor], padding_value: int = 0) -> Tensor:

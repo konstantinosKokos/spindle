@@ -16,46 +16,16 @@ Try out the online version at the link below (wip):
 
 ## :wrench: How-To
 
-Pending better packaging, installation involves the following steps:
 
 > ### 1. Create a local clone of this repository
 >   ```
 >   git clone git@github.com:konstantinosKokos/spindle.git
 >  ```
-> ### 2. Prepare your environment
->   * #### Setup and source a **fresh** python 3.10 environment, for instance using conda. 
->     ```
->      conda create -n [VENV_NAME] python=3.10
->      conda activate [VENV_NAME]
->      ```
->   * #### Install [aethel](https://github.com//konstantinosKokos/aethel)
->     ``` 
->       pip install git+https://github.com/konstantinosKokos/aethel@stable
->     ```
->   * #### Install PyTorch 1.11 and opt_einsum
->     ```
->     conda install pytorch==1.11.0 -c pytorch
->     conda install opt_einsum -c conda-forge
->     ```
->   * #### Install Transformers
->     ```
->     pip install transformers==4.20.1
->     ```
->   * #### Finally, install PyTorch Geometric.
->    If you're lucky, this should work:
->    ```
->     conda install pyg -c pyg
->    ```
->    Chances are it won't.
->    If it doesn't, refer to the [installation instructions](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html).
->    The usual way out would look something like:
->    ```
->     pip install torch-scatter torch-sparse torch-cluster torch-spline-conv torch-geometric -f https://data.pyg.org/whl/torch-1.11.0+cpu.html
->    ```
->    Where you'd need to substitute for your own system's cuda version if you have one.
+> ### 2. Install dependencies (in a fresh conda environment)
+>   conda env create --name spindle --file=environment.yml
 > ### 3. Download pretrained model weights
->   These can be found [here](https://surfdrive.surf.nl/files/index.php/s/3TN0r1HwQehJJkR).
->  Extract and place them in the `data` directory.
+>   These can be found [here](https://surfdrive.surf.nl/files/index.php/s/RzRPbQQO0ipBrli).
+>  Place them in the `data` directory.
 
 You're good to go!
 Parse your first sentences as follows:

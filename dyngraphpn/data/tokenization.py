@@ -81,7 +81,7 @@ class AtomTokenizer:
 
     def encode_links(self,
                      links: dict[Symbol, Symbol],
-                     tree_levels: list[list[list[TokenizedSymbol]]]) -> dict[str, TokenizedMatching]:
+                     tree_levels: list[list[list[TokenizedSymbol]]]) -> dict[int, TokenizedMatching]:
         index_to_pos = {link_id: (link_id, level_id, root_id, pos_id)
                         for root_id, tree in enumerate(tree_levels)
                         for level_id, level in enumerate(tree)

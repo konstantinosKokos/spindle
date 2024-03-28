@@ -1,5 +1,3 @@
-import pdb
-
 import torch
 
 from dyngraphpn.data.tokenization import AtomTokenizer, load_data, group_trees

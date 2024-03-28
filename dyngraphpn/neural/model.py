@@ -7,7 +7,7 @@ import torch
 from torch.nn import Module, Embedding, Dropout
 from torch import Tensor
 from torch_geometric.typing import OptTensor
-from torch_geometric.utils import dropout_adj
+from torch_geometric.utils import dropout_edge
 
 
 class Parser(Module):
@@ -169,15 +169,16 @@ class Parser(Module):
                       root_dist: Tensor,
                       link_indices: list[Tensor],
                       cls_dist: int = -999) -> tuple[list[Tensor], list[Tensor]]:
-        token_preds, decoder_reprs = self.forward_tagger_train(input_ids=input_ids,
-                                                               attention_mask=attention_mask,
-                                                               token_clusters=token_clusters,
-                                                               node_ids=node_ids,
-                                                               node_pos=node_pos,
-                                                               node_to_root_index=node_to_root_index,
-                                                               root_edge_index=root_edge_index,
-                                                               root_dist=root_dist,
-                                                               cls_dist=cls_dist)
+        token_preds, decoder_reprs = self.forward_tagger_train(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_clusters=token_clusters,
+            node_ids=node_ids,
+            node_pos=node_pos,
+            node_to_root_index=node_to_root_index,
+            root_edge_index=root_edge_index,
+            root_dist=root_dist,
+            cls_dist=cls_dist)
         matches = self.link(decoder_reprs, link_indices)
         return token_preds, matches
 
@@ -192,23 +193,28 @@ class Parser(Module):
                     max_type_depth: int = 10) -> tuple[list[Tensor], list[Tensor], list[Tensor]]:
         root_features = self.encode(input_ids, attention_mask, token_clusters)
         root_edge_index, root_edge_attr = self.embed_sentential_edges(root_edge_index, root_dist, cls_dist)
-        return self.decode_dev(root_features=root_features,
-                               root_edge_index=root_edge_index,
-                               root_edge_attr=root_edge_attr,
-                               first_binary=first_binary,
-                               max_type_depth=max_type_depth)
+        return self.decode_dev(
+            root_features=root_features,
+            root_edge_index=root_edge_index,
+            root_edge_attr=root_edge_attr,
+            first_binary=first_binary,
+            max_type_depth=max_type_depth)
 
     def embed_sentential_edges(self, root_edge_index: Tensor, root_dist: Tensor, cls_dist) -> tuple[Tensor, Tensor]:
-        clipped_dist = torch.where(root_dist != cls_dist,
-                                   root_dist.clip(-self.max_dist, self.max_dist) + self.max_dist + 1,
-                                   0)
+        clipped_dist = torch.where(
+            root_dist.ne(cls_dist),
+            root_dist.clip(-self.max_dist, self.max_dist) + self.max_dist + 1,
+            0)
         if self.truncate_long_edges:
             distance_mask = root_dist.eq(cls_dist).bitwise_or(root_dist.abs() <= self.max_dist)
             clipped_dist = clipped_dist[distance_mask]
             root_edge_index = root_edge_index[:, distance_mask]
 
-        root_edge_index, clipped_dist = dropout_adj(
-            root_edge_index, clipped_dist, self.edge_dropout, training=self.training)
+        root_edge_index, root_edge_mask = dropout_edge(
+            edge_index=root_edge_index,
+            p=self.edge_dropout,
+            training=self.training)
+        clipped_dist = clipped_dist[root_edge_mask]
         return root_edge_index, self.dist_embedding(clipped_dist)
 
     def positionally_embed(self, positional_maps: Tensor, node_ids: Tensor) -> Tensor:
