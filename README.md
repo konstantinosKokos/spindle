@@ -24,7 +24,7 @@ Try out the online version at the link below (wip):
 > ### 2. Install dependencies (in a fresh conda environment)
 >   conda env create --name spindle --file=environment.yml
 > ### 3. Download pretrained model weights
->   These can be found [here](https://surfdrive.surf.nl/files/index.php/s/RzRPbQQO0ipBrli).
+>   These can be found [here](https://www.dropbox.com/scl/fi/xqg1yt85ldvs8iscwms19/model_weights.pt?rlkey=sm3vgbkjyggcovaxfyyil2bku&dl=0).
 >  Place them in the `data` directory.
 
 You're good to go!
